@@ -1,8 +1,32 @@
-/* 写字表 · 一年级上册（按教材顺序，与语文进度对齐）
-   每项：{ c: 字, u: 所属单元 }
-   每天取 3~5 字，游标按顺序推进。 */
+/* 写字表注册器 + 一年级上册写字表
+   每项：[字, 所属单元]；按教材顺序排列，每天取 3~5 字，游标顺序推进。
+   多册次共用：WritingTable.reg(bookId, rows) / .get(bookId) */
 (function (w) {
   'use strict';
+
+  if (!w.WritingTable) {
+    w.WritingTable = {
+      books: {},
+      reg: function (bookId, rows) {
+        var seen = {}, list = [];
+        rows.forEach(function (row) {
+          var c = row[0];
+          if (!w.CHARS[c]) return;        // 字库缺失则跳过
+          if (seen[c]) return;            // 去重，保留首次出现
+          seen[c] = 1;
+          list.push({
+            c: c, u: row[1], p: w.CHARS[c].p, s: w.CHARS[c].s,
+            r: w.CHARS[c].r, w: w.CHARS[c].w, st: w.CHARS[c].st
+          });
+        });
+        this.books[bookId] = list;
+        return list;
+      },
+      get: function (bookId) {
+        return this.books[bookId] || this.books['yw-1a'] || [];
+      }
+    };
+  }
 
   var TABLE = [
     // 准备课 + 第一单元 识字
@@ -62,15 +86,8 @@
     ['数', 'u8'], ['彩', 'u8'], ['问', 'u8'], ['到', 'u8'], ['方', 'u8'], ['没', 'u8'], ['更', 'u8'], ['绿', 'u8']
   ];
 
-  // 过滤掉字库中不存在的字（保证每个字都有拼音/笔画信息）
-  var seen = {}, list = [];
-  TABLE.forEach(function (row) {
-    var c = row[0];
-    if (!w.CHARS[c]) return;          // 字库缺失则跳过
-    if (seen[c]) return;              // 去重，保留首次出现的位置
-    seen[c] = 1;
-    list.push({ c: c, u: row[1], p: w.CHARS[c].p, s: w.CHARS[c].s, r: w.CHARS[c].r, w: w.CHARS[c].w, st: w.CHARS[c].st });
-  });
+  // 过滤 + 去重后注册（保证每个字都有拼音/笔画信息）
+  var list = w.WritingTable.reg('yw-1a', TABLE);
 
-  w.WRITING_TABLE = list;
+  w.WRITING_TABLE = list;   // 兼容旧引用（当前册默认为上册）
 })(window);

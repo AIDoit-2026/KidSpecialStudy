@@ -9,11 +9,11 @@
   };
 
   /* ---------------- 图示渲染 ---------------- */
-  var SHAPE_NAMES = { cube: '正方体', cuboid: '长方体', cylinder: '圆柱', ball: '球', circle: '圆', square: '正方形', triangle: '三角形' };
+  var SHAPE_NAMES = { cube: '正方体', cuboid: '长方体', cylinder: '圆柱', ball: '球', circle: '圆', square: '正方形', triangle: '三角形', rect: '长方形', parallelogram: '平行四边形' };
 
   function shapeSVG(kind) {
     var svg = U.svg('svg', { viewBox: '0 0 76 76', class: 'shape-svg' });
-    var fill = { cube: '#FFD9E6', cuboid: '#D8F0EC', cylinder: '#FFE9C7', ball: '#E4DDFF', circle: '#FFE9C7', square: '#D8F0EC', triangle: '#E4DDFF' }[kind] || '#EEE';
+    var fill = { cube: '#FFD9E6', cuboid: '#D8F0EC', cylinder: '#FFE9C7', ball: '#E4DDFF', circle: '#FFE9C7', square: '#D8F0EC', triangle: '#E4DDFF', rect: '#D8F0EC', parallelogram: '#FFE9C7' }[kind] || '#EEE';
     var stroke = '#C99AAE';
     function add(tag, attrs) { svg.appendChild(U.svg(tag, attrs)); }
 
@@ -33,6 +33,10 @@
       add('circle', { cx: 38, cy: 38, r: 22, fill: fill, stroke: stroke });
     } else if (kind === 'square') {
       add('rect', { x: 16, y: 16, width: 44, height: 44, fill: fill, stroke: stroke, rx: 3 });
+    } else if (kind === 'rect') {
+      add('rect', { x: 12, y: 22, width: 52, height: 32, fill: fill, stroke: stroke, rx: 3 });
+    } else if (kind === 'parallelogram') {
+      add('polygon', { points: '24,54 16,24 56,24 48,54', fill: fill, stroke: stroke });
     } else if (kind === 'triangle') {
       add('polygon', { points: '38,14 62,60 14,60', fill: fill, stroke: stroke });
     }
@@ -84,7 +88,8 @@
       (fig.list || []).forEach(function (k, idx) {
         var cell = U.h('div', { style: { textAlign: 'center' } });
         cell.appendChild(shapeSVG(k));
-        cell.appendChild(U.h('div', { class: 'tiny muted', text: (idx + 1) + '. ' + (SHAPE_NAMES[k] || '') }));
+        // 只标序号，不标图形名（避免直接泄露答案）
+        cell.appendChild(U.h('div', { class: 'tiny muted', text: String(idx + 1) }));
         panel.appendChild(cell);
       });
       wrap.appendChild(panel);

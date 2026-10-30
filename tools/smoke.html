@@ -43,9 +43,16 @@
 <script src="../assets/js/export.js"></script>
 <script src="../assets/js/ai.js"></script>
 <script src="../content/chars-db.js"></script>
+<script src="../content/chars-db-1b.js"></script>
+<script src="../content/py-presets.js"></script>
+<script src="../content/yw-builder.js"></script>
+<script src="../content/sx-builder.js"></script>
 <script src="../content/writing-1a.js"></script>
+<script src="../content/writing-1b.js"></script>
 <script src="../content/yw-1a.js"></script>
+<script src="../content/yw-1b.js"></script>
 <script src="../content/sx-1a.js"></script>
+<script src="../content/sx-1b.js"></script>
 <script src="../assets/js/content.js"></script>
 <script src="../assets/js/app.js"></script>
 <script src="../assets/js/pages/setup.js"></script>
@@ -288,8 +295,39 @@
     });
   }
 
+  function multiBook() {
+    section('多册次（下册）');
+    ok('默认是上册', Store.progress().bookId === 'yw-1a', Store.progress().bookId);
+    ok('两册都已装', Content.availableBooks().filter(function (b) { return b.ready; }).length === 2);
+
+    Store.switchBook('yw-1b');
+    ok('切到下册', Store.progress().bookId === 'yw-1b');
+    ok('内容包跟着换', Content.book('chinese').bookId === 'yw-1b', Content.book('chinese').bookId);
+    ok('数学包跟着换', Content.book('math').bookId === 'sx-1b', Content.book('math').bookId);
+    ok('写字表跟着换', Content.writingTable().length === WritingTable.get('yw-1b').length,
+      Content.writingTable().length);
+
+    var d = Task.ensure(U.today());
+    var ids = Task.sessionItems(d.plan[0]).map(function (i) { return i.id; });
+    var fromB = ids.filter(function (id) { return /^(yw1b|sx1b)-/.test(id); }).length;
+    ok('题目全部来自下册包', fromB === ids.length, fromB + '/' + ids.length);
+    ok('上册进度已存档', !!Store.progress().archive['yw-1a']);
+
+    Store.switchBook('yw-1a');
+    var pv = Store.progress();
+    ok('切回上册', pv.bookId === 'yw-1a');
+    ok('上册进度已恢复', pv.yw.unit * 1000 + pv.yw.node === 1000, JSON.stringify(pv.yw));
+
+    Store.jumpTo(2, 1, 1, 2);
+    ok('跳课生效', Store.progress().yw.unit === 2 && Store.progress().yw.node === 1,
+      JSON.stringify(Store.progress().yw));
+    Store.jumpTo(0, 0, 0, 0);
+  }
+
   interaction().catch(function (e) {
     fail++; out.push('EXCEPTION(interaction): ' + e.message);
+  }).then(function () {
+    try { multiBook(); } catch (e) { fail++; out.push('EXCEPTION(multiBook): ' + e.message); }
   }).then(function () {
     renderResults();
     document.title = '冒烟测试：' + pass + ' 通过 / ' + fail + ' 失败';

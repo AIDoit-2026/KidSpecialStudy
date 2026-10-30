@@ -2,7 +2,7 @@
 (function (w) {
   'use strict';
 
-  var draft = { name: '', avatar: '🐰', color: '#FF6B9D', pace: 'standard' };
+  var draft = { name: '', avatar: '🐰', color: '#FF6B9D', pace: 'standard', bookId: 'yw-1a' };
   var step = 0;
 
   function render(host, query) {
@@ -42,6 +42,16 @@
       });
       card.appendChild(U.h('div', { class: 'field' }, U.h('label', { text: '孩子叫什么？' }), nameInput));
       card.appendChild(U.h('div', { class: 'field' }, U.h('label', { text: '选个头像' }), pick));
+
+      var bookSel = U.h('select', { class: 'input' });
+      (w.Content && w.Content.availableBooks ? w.Content.availableBooks() : [{ id: 'yw-1a', label: '一年级上册' }])
+        .forEach(function (b) {
+          bookSel.appendChild(U.h('option', { value: b.id, text: b.label, selected: draft.bookId === b.id }));
+        });
+      bookSel.addEventListener('change', function () { draft.bookId = bookSel.value; });
+      card.appendChild(U.h('div', { class: 'field' },
+        U.h('label', { text: '这学期学哪一册' }), bookSel,
+        U.h('span', { class: 'hint', text: '之后在家长中心也能切换，两册进度各自保存。' })));
       card.appendChild(U.h('button', {
         class: 'btn btn-primary btn-lg btn-block', text: '下一步',
         onclick: function () {
@@ -85,8 +95,9 @@
           if (v1 !== v2) { U.toast('两次输入不一致', 'no'); return; }
           var kid = w.Store.kids.add({
             name: draft.name, avatar: draft.avatar, color: draft.color,
-            grade: 1, bookId: 'yw-1a', pace: draft.pace
+            grade: 1, bookId: draft.bookId, pace: draft.pace
           });
+          w.Store.saveProgress({ bookId: draft.bookId });
           w.Store.saveSettings({ pinHash: U.hashPin(v1), pace: draft.pace });
           App.lock();
           U.toast('档案建好啦，开始今天的练习吧', 'ok');

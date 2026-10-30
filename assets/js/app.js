@@ -117,10 +117,11 @@
       sideKid.innerHTML =
         '<div class="sk-row"><span class="sk-avatar">' + kid.avatar + '</span>' +
         '<div><div class="sk-name">' + U.esc(kid.name) + '</div>' +
-        '<div class="sk-meta">一年级 · ' + (w.Content.book('chinese') ? '上册' : '') + '</div></div></div>' +
+        '<div class="sk-meta">' + w.Content.bookLabel() + '</div></div></div>' +
         '<div class="sk-streak">🔥 连续打卡 ' + streak + ' 天</div>';
-      document.getElementById('brand-sub').textContent = w.Store.settings().pace === 'light' ? '轻量节奏' :
-        w.Store.settings().pace === 'plus' ? '加量节奏' : '标准节奏';
+      document.getElementById('brand-sub').textContent = w.Content.bookLabel() + ' · ' +
+        (w.Store.settings().pace === 'light' ? '轻量' :
+          w.Store.settings().pace === 'plus' ? '加量' : '标准');
     }
   }
   App.refreshChrome = refreshChrome;

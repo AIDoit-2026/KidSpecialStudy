@@ -70,7 +70,7 @@
   }
 
   function nextWriting(cursor, count) {
-    var table = w.WRITING_TABLE || [];
+    var table = w.Content.writingTable();
     if (!table.length || count <= 0) return { chars: [], cursor: cursor };
     var out = [], c = cursor;
     for (var i = 0; i < count; i++) {

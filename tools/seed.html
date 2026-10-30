@@ -11,15 +11,25 @@
 <script src="../assets/js/export.js"></script>
 <script src="../assets/js/ai.js"></script>
 <script src="../content/chars-db.js"></script>
+<script src="../content/chars-db-1b.js"></script>
+<script src="../content/py-presets.js"></script>
+<script src="../content/yw-builder.js"></script>
+<script src="../content/sx-builder.js"></script>
 <script src="../content/writing-1a.js"></script>
+<script src="../content/writing-1b.js"></script>
 <script src="../content/yw-1a.js"></script>
+<script src="../content/yw-1b.js"></script>
 <script src="../content/sx-1a.js"></script>
+<script src="../content/sx-1b.js"></script>
 <script src="../assets/js/content.js"></script>
 <script>
 /* 仅用于本地截图/演示：造一份 9 天的历史数据 */
 (function () {
   Store.wipeAll();
-  var kid = Store.kids.add({ name: '小满', avatar: '🐰', pace: 'standard' });
+  var qs = new URLSearchParams(location.search);
+  var book = qs.get('book') || 'yw-1a';
+  var kid = Store.kids.add({ name: '小满', avatar: '🐰', pace: 'standard', bookId: book });
+  Store.saveProgress({ bookId: book });
   Store.saveSettings({ pinHash: U.hashPin('1234'), charsPerDay: 4 });
 
   var today = U.today();

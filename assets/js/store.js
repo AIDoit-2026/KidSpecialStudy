@@ -4,7 +4,7 @@
   'use strict';
 
   var PREFIX = 'wb2_';
-  var VERSION = 2;
+  var VERSION = 3;
   var mem = {};           // 读缓存
   var listeners = [];
   var LS_OK = true;
@@ -116,12 +116,62 @@
   }
   function defaultProgress() {
     return {
+      bookId: 'yw-1a',              // 当前册次
       yw: { unit: 0, node: 0 },     // 单元下标 / 节点下标
       sx: { unit: 0, node: 0 },
       writingCursor: 0,
       startDate: U.today(),
-      sessionsDone: 0               // 累计完成场次（用于欠账计算）
+      sessionsDone: 0,              // 累计完成场次（用于欠账计算）
+      archive: {}                   // 各册次进度存档 {bookId:{yw,sx,writingCursor,sessionsDone,startDate}}
     };
+  }
+
+  /* 切换册次：当前进度入档，取出目标册次进度（没有则从第一单元开始） */
+  function switchBook(bookId) {
+    var kid = activeKid();
+    if (!kid || !bookId) return null;
+    var p = progress();
+    var cur = p.bookId || 'yw-1a';
+    if (cur === bookId) return p;
+    var arch = Object.assign({}, p.archive || {});
+    arch[cur] = {
+      yw: p.yw, sx: p.sx, writingCursor: p.writingCursor,
+      sessionsDone: p.sessionsDone || 0, startDate: p.startDate
+    };
+    var next = arch[bookId] || {
+      yw: { unit: 0, node: 0 }, sx: { unit: 0, node: 0 },
+      writingCursor: 0, sessionsDone: 0, startDate: U.today()
+    };
+    updateKid(kid.id, { bookId: bookId });
+    // 今天还没打完的计划作废，按新册次重排
+    var today = U.today();
+    var d = rawGet(kid.id + '_days', {}) || {};
+    var rec = d[today];
+    var hasPending = rec && (rec.plan || []).some(function (s) { return s.status !== 'done'; });
+    if (rec && hasPending) { delete d[today]; rawSet(kid.id + '_days', d); }
+    delete mem[kid.id + '_days'];
+    saveProgress({
+      bookId: bookId, archive: arch,
+      yw: next.yw, sx: next.sx, writingCursor: next.writingCursor || 0,
+      sessionsDone: next.sessionsDone || 0, startDate: next.startDate || U.today()
+    });
+    notify('book');
+    return progress();
+  }
+
+  /* 跳到指定单元 / 节点（插班、跳课） */
+  function jumpTo(ywU, ywN, sxU, sxN) {
+    var p = progress();
+    saveProgress({
+      yw: { unit: Number(ywU) || 0, node: Number(ywN) || 0 },
+      sx: { unit: Number(sxU) || 0, node: Number(sxN) || 0 }
+    });
+    var kid = activeKid();
+    var d = rawGet(kid.id + '_days', {}) || {};
+    var today = U.today();
+    if (d[today] && !d[today].done) { delete d[today]; rawSet(kid.id + '_days', d); delete mem[kid.id + '_days']; }
+    notify('progress');
+    return p;
   }
 
   /* ---------------- 设置 ---------------- */
@@ -691,6 +741,16 @@
         rawDel(kid.id + '_checkins');
       }
     });
+    // v2 → v3：进度加 bookId / archive
+    kidList().forEach(function (kid) {
+      var p = rawGet(kid.id + '_progress', null);
+      if (p && !p.bookId) {
+        p.bookId = 'yw-1a';
+        p.archive = p.archive || {};
+        rawSet(kid.id + '_progress', p);
+      }
+      if (!kid.bookId) updateKid(kid.id, { bookId: 'yw-1a' });
+    });
     rawSet('schema_version', VERSION);
   }
 
@@ -705,7 +765,7 @@
     boot: boot, subscribe: subscribe, notify: notify,
     kids: { list: kidList, active: activeKid, activeId: activeKidId, setActive: setActiveKid, add: addKid, update: updateKid, remove: removeKid },
     settings: settings, saveSettings: saveSettings,
-    progress: progress, saveProgress: saveProgress,
+    progress: progress, saveProgress: saveProgress, switchBook: switchBook, jumpTo: jumpTo,
     days: days, day: day, saveDay: saveDay, ensureDay: ensureDay,
     attempts: attempts, addAttempt: addAttempt, attemptsOf: attemptsOf,
     mistakes: mistakes, mistakeOf: mistakeOf, recordAnswer: recordAnswer, dueMistakes: dueMistakes, saveMistakes: saveMistakes,

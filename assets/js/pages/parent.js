@@ -87,15 +87,17 @@
     var q = U.h('div', { class: 'grid g3', style: { marginTop: '16px' } });
     q.appendChild(quick('📚', '课文进度', progressText('chinese'), function () { App.go('#/parent?tab=settings'); }));
     q.appendChild(quick('🔢', '数学进度', progressText('math'), function () { App.go('#/parent?tab=settings'); }));
-    q.appendChild(quick('✍️', '写字游标', (w.Store.progress().writingCursor || 0) + ' / ' + (w.WRITING_TABLE || []).length + ' 字', null));
+    q.appendChild(quick('✍️', '写字游标', (w.Store.progress().writingCursor || 0) + ' / ' + w.Content.writingTable().length + ' 字', null));
     view.appendChild(q);
 
     var info = U.h('div', { class: 'card', style: { marginTop: '16px' } });
     info.appendChild(U.h('div', { class: 'card-title' }, U.h('h2', { text: '内容与环境' })));
     info.appendChild(U.h('div', { class: 'kv' },
+      U.h('div', { class: 'k', text: '当前册次' }), U.h('div', { text: stats.bookLabel + '（' + stats.bookId + '）' }),
       U.h('div', { class: 'k', text: '语文包' }), U.h('div', { text: stats.ywUnits + ' 单元 / ' + stats.ywNodes + ' 节点 / ' + stats.ywItems + ' 题' }),
       U.h('div', { class: 'k', text: '数学包' }), U.h('div', { text: stats.sxUnits + ' 单元 / ' + stats.sxNodes + ' 节点 / ' + stats.sxItems + ' 题' }),
       U.h('div', { class: 'k', text: '写字表' }), U.h('div', { text: stats.writing + ' 字' }),
+      U.h('div', { class: 'k', text: '全库' }), U.h('div', { text: (function () { var a = w.Content.allStats(); return a.books + ' 个包 / ' + a.nodes + ' 节点 / ' + a.items + ' 题'; })() }),
       U.h('div', { class: 'k', text: '语音' }), U.h('div', { text: TTS.available() ? '可用（中文语音已就绪）' : '不可用：系统缺少中文语音包，已自动隐藏朗读' }),
       U.h('div', { class: 'k', text: '存储占用' }), U.h('div', { text: storageSize() })
     ));
@@ -380,6 +382,65 @@
     ));
     view.appendChild(cfg);
 
+    /* 教材册次与进度 */
+    var bk = U.h('div', { class: 'card' });
+    bk.appendChild(U.h('div', { class: 'card-title' },
+      U.h('h2', { text: '教材与进度' }),
+      U.h('span', { class: 'pill purple', text: w.Content.bookLabel() })
+    ));
+    var bookSeg = U.h('div', { class: 'seg' });
+    w.Content.availableBooks().forEach(function (b) {
+      bookSeg.appendChild(U.h('button', {
+        class: w.Content.activeBookId() === b.id ? 'on' : '',
+        text: b.label + (b.ready ? '' : '（未装）'),
+        onclick: function () {
+          if (!b.ready) { U.toast('这一册的内容包还没装', 'no'); return; }
+          if (w.Content.activeBookId() === b.id) return;
+          U.confirm({
+            title: '切换到' + b.label + '？',
+            desc: '当前册次的进度会存起来，切回来还能接着做；今天没做完的计划会按新册次重排。写字表也会换成这一册的。',
+            okText: '切换'
+          }).then(function (ok) {
+            if (!ok) return;
+            w.Store.switchBook(b.id);
+            U.toast('已切换到' + b.label, 'ok');
+            App.render();
+          });
+        }
+      }));
+    });
+    bk.appendChild(bookSeg);
+
+    var pr = w.Store.progress();
+    var ywNow = w.Content.nodeAtCursor('chinese', pr.yw);
+    var sxNow = w.Content.nodeAtCursor('math', pr.sx);
+    var ywAll = w.Content.allNodes('chinese');
+    var sxAll = w.Content.allNodes('math');
+    function idxOf(list, cur) {
+      for (var i = 0; i < list.length; i++) if (list[i].unit === cur.unit && list[i].node === cur.node) return i + 1;
+      return 0;
+    }
+    bk.appendChild(U.h('div', { class: 'kv', style: { marginTop: '14px' } },
+      U.h('div', { class: 'k', text: '语文' }), U.h('div', { text: (ywNow ? ywNow.title : '已学完') + '（第 ' + idxOf(ywAll, pr.yw) + ' / ' + ywAll.length + ' 节）' }),
+      U.h('div', { class: 'k', text: '数学' }), U.h('div', { text: (sxNow ? sxNow.title : '已学完') + '（第 ' + idxOf(sxAll, pr.sx) + ' / ' + sxAll.length + ' 节）' }),
+      U.h('div', { class: 'k', text: '写字' }), U.h('div', { text: '已写 ' + (pr.writingCursor || 0) + ' / ' + w.Content.writingTable().length + ' 字' })
+    ));
+    bk.appendChild(U.h('div', { class: 'row wrap', style: { marginTop: '12px' } },
+      U.h('button', { class: 'btn btn-sm', text: '✏️ 跳到指定课时', onclick: openJump }),
+      U.h('button', {
+        class: 'btn btn-sm', text: '↺ 回到第一课',
+        onclick: function () {
+          U.confirm({ title: '从第一课重来？', desc: '只改进度指针，历史记录和星星都保留。' }).then(function (ok) {
+            if (!ok) return;
+            w.Store.jumpTo(0, 0, 0, 0);
+            U.toast('已回到第一课', 'ok');
+            App.render();
+          });
+        }
+      })
+    ));
+    view.appendChild(bk);
+
     /* 排程 */
     var sch = U.h('div', { class: 'card' });
     sch.appendChild(U.h('div', { class: 'card-title' }, U.h('h2', { text: '排程与补练' })));
@@ -436,6 +497,70 @@
       U.h('button', { class: 'btn btn-sm', text: '立即锁定', onclick: function () { App.lock(); U.toast('已锁定'); App.go('#/today'); } })
     ));
     view.appendChild(sec);
+  }
+
+  function openJump() {
+    var ywBook = w.Content.book('chinese'), sxBook = w.Content.book('math');
+    var pr = w.Store.progress();
+
+    function unitSelect(book, curUnit, onChange) {
+      var sel = U.h('select', { class: 'input' });
+      book.units.forEach(function (u, i) {
+        sel.appendChild(U.h('option', { value: i, text: (i + 1) + '. ' + u.name.replace(/^第[^·]*· /, ''), selected: i === curUnit }));
+      });
+      sel.addEventListener('change', onChange);
+      return sel;
+    }
+    function nodeSelect(book, unitIdx, curNode) {
+      var sel = U.h('select', { class: 'input' });
+      book.units[unitIdx].nodes.forEach(function (n, i) {
+        sel.appendChild(U.h('option', { value: i, text: '第 ' + (i + 1) + ' 节 · ' + n.title, selected: i === curNode }));
+      });
+      return sel;
+    }
+
+    var ywUnitSel = unitSelect(ywBook, pr.yw.unit, function () { repaint(); });
+    var ywNodeSel = nodeSelect(ywBook, pr.yw.unit, pr.yw.node);
+    var sxUnitSel = unitSelect(sxBook, pr.sx.unit, function () { repaint(); });
+    var sxNodeSel = nodeSelect(sxBook, pr.sx.unit, pr.sx.node);
+    var wInput = U.h('input', { class: 'input', type: 'number', min: 0, value: pr.writingCursor || 0 });
+
+    var ywNodeBox = U.h('div', { class: 'field' }, U.h('label', { text: '语文 · 第几节' }), ywNodeSel);
+    var sxNodeBox = U.h('div', { class: 'field' }, U.h('label', { text: '数学 · 第几节' }), sxNodeSel);
+    function repaint() {
+      U.clear(ywNodeSel);
+      ywBook.units[Number(ywUnitSel.value)].nodes.forEach(function (n, i) {
+        ywNodeSel.appendChild(U.h('option', { value: i, text: '第 ' + (i + 1) + ' 节 · ' + n.title }));
+      });
+      U.clear(sxNodeSel);
+      sxBook.units[Number(sxUnitSel.value)].nodes.forEach(function (n, i) {
+        sxNodeSel.appendChild(U.h('option', { value: i, text: '第 ' + (i + 1) + ' 节 · ' + n.title }));
+      });
+    }
+
+    var m = U.modal({
+      title: '跳到指定课时',
+      desc: '用于插班、跳课或重学某一节。历史记录与星星不受影响。',
+      body: U.h('div', {},
+        U.h('div', { class: 'field' }, U.h('label', { text: '语文 · 第几单元' }), ywUnitSel),
+        ywNodeBox,
+        U.h('div', { class: 'field' }, U.h('label', { text: '数学 · 第几单元' }), sxUnitSel),
+        sxNodeBox,
+        U.h('div', { class: 'field' }, U.h('label', { text: '写字游标（第几个字）' }), wInput)
+      ),
+      actions: [
+        { label: '取消', class: 'btn-ghost', onClick: function (mm) { mm.close(); } },
+        {
+          label: '保存', class: 'btn-primary', onClick: function (mm) {
+            w.Store.jumpTo(ywUnitSel.value, ywNodeSel.value, sxUnitSel.value, sxNodeSel.value);
+            w.Store.saveProgress({ writingCursor: Number(wInput.value) || 0 });
+            mm.close();
+            U.toast('已跳转', 'ok');
+            App.render();
+          }
+        }
+      ]
+    });
   }
 
   function toggle(label, value, onChange) {
