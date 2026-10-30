@@ -1,0 +1,11 @@
+<!DOCTYPE html><html><body><div id="r">start</div>
+<script>
+var r=document.getElementById('r');
+try{
+  var req=indexedDB.open('t1',1);
+  req.onupgradeneeded=function(e){e.target.result.createObjectStore('s');};
+  req.onsuccess=function(){r.textContent='IDB_OK';};
+  req.onerror=function(){r.textContent='IDB_ERR:'+(req.error&&req.error.name);};
+  setTimeout(function(){ if(r.textContent==='start') r.textContent='IDB_TIMEOUT'; },2500);
+}catch(e){ r.textContent='IDB_THROW:'+e.name; }
+</script></body></html>

@@ -1,0 +1,160 @@
+/* 写字页：田字格范字 → 本子写 → 拍照上传 → 打卡 */
+(function (w) {
+  'use strict';
+
+  function charCard(c) {
+    var card = U.h('div', { class: 'char-card' });
+    var tian = U.h('div', { class: 'tian' });
+    tian.appendChild(U.h('div', { class: 'glyph', text: c }));
+    card.appendChild(tian);
+    card.appendChild(U.h('div', { class: 'char-meta' },
+      U.h('b', { text: c }), ' ' + (w.CHARS[c] ? w.CHARS[c].p : ''),
+      U.h('span', { class: 'muted', text: '　' + (w.CHARS[c] ? w.CHARS[c].s + ' 笔' : '') })
+    ));
+    if (w.CHARS[c] && w.CHARS[c].w.length) {
+      card.appendChild(U.h('div', { class: 'char-words', text: '组词：' + w.CHARS[c].w.join('、') }));
+    }
+    if (w.CHARS[c] && w.CHARS[c].st.length) {
+      var list = U.h('div', { class: 'stroke-list' });
+      w.CHARS[c].st.forEach(function (s, i) {
+        list.appendChild(U.h('span', { text: (i + 1) + ' ' + s }));
+      });
+      card.appendChild(list);
+    }
+    return card;
+  }
+
+  function render(view, query) {
+    var date = U.today();
+    var slot = Number(query.slot || 0);
+    var day = w.Task.ensure(date);
+    var session = day.plan[slot];
+    if (!session) { App.go('#/today'); return; }
+
+    var wrap = U.h('div');
+    view.appendChild(wrap);
+
+    var chars = session.chars || [];
+    var head = U.h('div', { class: 'card' });
+    head.appendChild(U.h('div', { class: 'card-title' },
+      U.h('h2', { text: '🖌 今天的字（' + chars.length + ' 个）' }),
+      U.h('div', { class: 'row' },
+        U.h('span', { class: 'pill green', text: '写完拍照上传' }),
+        U.h('button', { class: 'btn btn-sm', text: '🖨 打印格子', onclick: function () { App.go('#/print?slot=' + slot + '&mode=writing'); } })
+      )
+    ));
+    head.appendChild(U.h('div', { class: 'small muted', text: '每个字在本子上写一行，写完拍一张照片就好。可以先看笔顺，跟着数一数。' }));
+    wrap.appendChild(head);
+
+    if (!chars.length) {
+      wrap.appendChild(U.h('div', { class: 'card' },
+        U.h('div', { class: 'empty' }, U.h('span', { class: 'e-emoji', text: '🌤' }), '这一场没有写字任务，可以直接去打卡。')
+      ));
+    } else {
+      var grid = U.h('div', { class: 'write-grid', style: { marginTop: '16px' } });
+      chars.forEach(function (c) { grid.appendChild(charCard(c)); });
+      wrap.appendChild(grid);
+    }
+
+    /* 上传区 */
+    var upload = U.h('div', { class: 'card', style: { marginTop: '16px' } });
+    var fileInput = U.h('input', { type: 'file', accept: 'image/*', capture: 'environment', style: { display: 'none' } });
+    var zone = U.h('div', { class: 'upload-zone' });
+    upload.appendChild(zone);
+    upload.appendChild(fileInput);
+    wrap.appendChild(upload);
+
+    function paintZone(url) {
+      U.clear(zone);
+      if (url) {
+        zone.appendChild(U.h('div', { class: 'shot-thumb', style: { margin: '0 auto' } },
+          U.h('img', { src: url, alt: '作业照片' })
+        ));
+        zone.appendChild(U.h('div', { class: 'row', style: { justifyContent: 'center', marginTop: '12px' } },
+          U.h('button', { class: 'btn btn-sm', text: '重新拍一张', onclick: pick }),
+          U.h('button', {
+            class: 'btn btn-sm btn-danger', text: '删除',
+            onclick: function () {
+              if (!session.photoId) return;
+              var pid = session.photoId;
+              w.Store.photoDelete(pid);
+              session.photoId = null;
+              w.Store.saveDay(date, day);
+              paintZone(null);
+            }
+          })
+        ));
+      } else {
+        zone.appendChild(U.h('div', { class: 'u-emoji', text: '📷' }));
+        zone.appendChild(U.h('div', { style: { fontWeight: '800', marginTop: '6px' }, text: '写好了，拍一张照片' }));
+        zone.appendChild(U.h('p', { text: '把本子放在光线好的地方，整页拍清楚' }));
+        zone.appendChild(U.h('button', { class: 'btn btn-primary', style: { marginTop: '10px' }, text: '拍照 / 选择照片', onclick: pick }));
+      }
+    }
+
+    function pick() { fileInput.click(); }
+
+    fileInput.addEventListener('change', function () {
+      var f = fileInput.files && fileInput.files[0];
+      if (!f) return;
+      U.toast('正在压缩照片…');
+      w.Store.compressImage(f, 1280, 0.82).then(function (out) {
+        var pid = 'p_' + date + '_' + slot;
+        w.Store.photoPut({
+          id: pid, kidId: w.Store.kids.activeId(), date: date, slot: slot,
+          blob: out.blob, thumbBlob: out.thumbBlob, w: out.w, h: out.h, at: Date.now(),
+          _dataURL: out.dataURL, _thumbURL: out.thumbURL
+        }).then(function () {
+          session.photoId = pid;
+          w.Store.saveDay(date, day);
+          w.Store.saveWriting({
+            date: date, slot: slot, chars: chars, photoId: pid,
+            scores: null, note: '', reviewedAt: null
+          });
+          if (!session._photoStar) {
+            session._photoStar = 1;
+            w.Store.addStars(2);
+            U.toast('照片收到啦 +2 ⭐', 'ok');
+          }
+          w.Store.photoURL(pid).then(paintZone);
+        });
+      }).catch(function (e) {
+        console.error(e);
+        U.toast('照片处理失败，换一张试试', 'no');
+      });
+      fileInput.value = '';
+    });
+
+    paintZone(null);
+    if (session.photoId) {
+      var wantId = session.photoId;
+      w.Store.photoURL(wantId).then(function (url) {
+        if (url && session.photoId === wantId) paintZone(url);
+      }).catch(function () { });
+    }
+
+    /* 底部动作 */
+    var foot = U.h('div', { class: 'card', style: { marginTop: '16px' } });
+    var answered = Object.keys(session.answers || {}).length;
+    var total = session.items.chars.length + session.items.pinyin.length + session.items.math.length;
+    if (answered < total) {
+      foot.appendChild(U.h('div', { class: 'small muted', style: { marginBottom: '10px' }, text: '题目还没做完（' + answered + '/' + total + '），可以先去练习。' }));
+      foot.appendChild(U.h('button', { class: 'btn btn-ghost', text: '← 回去做题', onclick: function () { App.go('#/practice?slot=' + slot); } }));
+    }
+    var canSubmit = chars.length === 0 || !!session.photoId;
+    var btn = U.h('button', {
+      class: 'btn btn-primary btn-lg btn-block', style: { marginTop: '10px' },
+      text: canSubmit ? '完成今天的打卡 ✓' : '先拍照上传才能打卡',
+      onclick: function () {
+        if (!canSubmit) { U.toast('还没上传作业照片哦', 'no'); return; }
+        if (answered < total) { U.toast('还有题目没做完，先做完再来打卡', 'no'); return; }
+        App.go('#/done?slot=' + slot);
+      }
+    });
+    if (!canSubmit) btn.disabled = true;
+    foot.appendChild(btn);
+    wrap.appendChild(foot);
+  }
+
+  App.page('writing', { title: '写字打卡', render: render });
+})(window);

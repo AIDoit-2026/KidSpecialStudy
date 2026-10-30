@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><title>seed</title></head>
+<body>
+<script src="../assets/js/util.js"></script>
+<script src="../assets/js/store.js"></script>
+<script src="../assets/js/schedule.js"></script>
+<script src="../assets/js/tts.js"></script>
+<script src="../assets/js/task.js"></script>
+<script src="../assets/js/charts.js"></script>
+<script src="../assets/js/export.js"></script>
+<script src="../assets/js/ai.js"></script>
+<script src="../content/chars-db.js"></script>
+<script src="../content/writing-1a.js"></script>
+<script src="../content/yw-1a.js"></script>
+<script src="../content/sx-1a.js"></script>
+<script src="../assets/js/content.js"></script>
+<script>
+/* 仅用于本地截图/演示：造一份 9 天的历史数据 */
+(function () {
+  Store.wipeAll();
+  var kid = Store.kids.add({ name: '小满', avatar: '🐰', pace: 'standard' });
+  Store.saveSettings({ pinHash: U.hashPin('1234'), charsPerDay: 4 });
+
+  var today = U.today();
+  var correctPool = [0.72, 0.83, 0.9, 0.66, 0.88, 1, 0.78, 0.92, 0.85];
+
+  for (var i = 9; i >= 1; i--) {
+    var date = U.addDays(today, -i);
+    if (i === 4) continue; // 造一天缺卡
+    var plan = Task.buildPlan(date);
+    plan.forEach(function (s, idx) {
+      var items = Content.items((s.items.chars || []).concat(s.items.pinyin || [], s.items.math || []));
+      var ratio = correctPool[(i + idx) % correctPool.length];
+      s.answers = {};
+      items.forEach(function (it, k) {
+        var correct = (k / items.length) < ratio;
+        s.answers[it.id] = { ans: it.options ? (correct ? it.answer : (it.answer + 1) % it.options.length) : (correct ? it.answer : Number(it.answer) + 1), correct: correct, tries: correct ? 1 : 2, ms: 8000 };
+        Store.addAttempt({ id: U.uid('a'), date: date, subject: it.module, itemId: it.id, answer: 0, correct: correct, tries: 1, ms: 8000, skill: it.skill });
+        if (!correct) Store.recordAnswer(it, false, {});
+      });
+      s.status = 'done';
+      s.photoId = 'p_demo_' + date + '_' + idx;
+      s.ms = 22 * 60000;
+      s.correct = Math.round(items.length * ratio);
+      s.total = items.length;
+      s.score = s.correct / items.length;
+      Store.saveWriting({
+        date: date, slot: idx, chars: s.chars, photoId: s.photoId,
+        scores: { stroke: 4, structure: 3, clean: 4, complete: 5 },
+        note: '间架结构再紧凑一点', reviewedAt: Date.now() - 86400000, reviewedBy: 'parent'
+      });
+    });
+    plan[0] && (w2 = null);
+    Store.saveDay(date, { plan: plan, done: true });
+    Store.saveProgress({
+      yw: plan[plan.length - 1].next.yw, sx: plan[plan.length - 1].next.sx,
+      writingCursor: plan[plan.length - 1].next.w,
+      sessionsDone: (Store.progress().sessionsDone || 0) + plan.length
+    });
+  }
+  Store.addStars(126);
+  Store.unlockDecor('rainbow');
+  Store.unlockDecor('tree');
+  Store.saveProgress({ startDate: U.addDays(today, -9) });
+
+  /* 今天：只做了一半，留出未完成状态 */
+  var d = Task.ensure(today);
+  d.plan[0].status = 'done';
+  d.plan[0].photoId = 'p_demo_today';
+  d.plan[0].answers = d.plan[0].answers || {};
+  Store.saveDay(today, d);
+  Store.saveWriting({ date: today, slot: 0, chars: d.plan[0].chars, photoId: 'p_demo_today', scores: null, note: '', reviewedAt: null });
+
+  location.replace('../index.html#/today');
+})();
+</script>
+</body>
+</html>

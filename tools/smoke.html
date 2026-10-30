@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>冒烟测试</title>
+<link rel="stylesheet" href="../assets/css/app.css">
+<style>
+#results{font-family:monospace;font-size:13px;padding:16px;background:#111;color:#ddd;white-space:pre-wrap}
+.pass{color:#7ee787}.fail{color:#ff7b72}
+</style>
+</head>
+<body>
+<div id="app" class="app" hidden>
+  <aside class="sidebar">
+    <div class="brand"><span class="brand-emoji">🌱</span><div class="brand-text"><b>测试</b><small id="brand-sub"></small></div></div>
+    <nav class="side-nav" id="side-nav"></nav>
+    <div class="side-kid" id="side-kid"></div>
+  </aside>
+  <main class="main">
+    <header class="topbar">
+      <div class="topbar-left"><button class="icon-btn only-mobile" id="btn-menu">☰</button><h1 id="page-title">今日任务</h1></div>
+      <div class="topbar-right">
+        <div class="star-chip" id="star-chip">⭐ <b>0</b></div>
+        <button class="kid-chip" id="kid-chip"></button>
+      </div>
+    </header>
+    <div id="view" class="view"></div>
+  </main>
+  <nav class="bottom-tabs" id="bottom-tabs"></nav>
+</div>
+<div id="boot" class="boot" hidden></div>
+<div id="modal-root"></div>
+<div id="toast-root" class="toast-root"></div>
+<div id="fx-root" class="fx-root"></div>
+<div id="results"></div>
+
+<script src="../assets/js/util.js"></script>
+<script src="../assets/js/store.js"></script>
+<script src="../assets/js/schedule.js"></script>
+<script src="../assets/js/tts.js"></script>
+<script src="../assets/js/task.js"></script>
+<script src="../assets/js/charts.js"></script>
+<script src="../assets/js/export.js"></script>
+<script src="../assets/js/ai.js"></script>
+<script src="../content/chars-db.js"></script>
+<script src="../content/writing-1a.js"></script>
+<script src="../content/yw-1a.js"></script>
+<script src="../content/sx-1a.js"></script>
+<script src="../assets/js/content.js"></script>
+<script src="../assets/js/app.js"></script>
+<script src="../assets/js/pages/setup.js"></script>
+<script src="../assets/js/pages/today.js"></script>
+<script src="../assets/js/pages/practice.js"></script>
+<script src="../assets/js/pages/writing.js"></script>
+<script src="../assets/js/pages/done.js"></script>
+<script src="../assets/js/pages/growth.js"></script>
+<script src="../assets/js/pages/mistakes.js"></script>
+<script src="../assets/js/pages/parent.js"></script>
+<script src="../assets/js/pages/review.js"></script>
+<script src="../assets/js/pages/print.js"></script>
+
+<script>
+(function () {
+  var out = [], pass = 0, fail = 0;
+  function ok(name, cond, extra) {
+    if (cond) { pass++; out.push('PASS  ' + name); }
+    else { fail++; out.push('FAIL  ' + name + (extra ? '  → ' + extra : '')); }
+  }
+  function section(t) { out.push('\n— ' + t + ' —'); }
+
+  function renderResults() {
+    document.getElementById('results').innerHTML = out.map(function (l) {
+      var cls = l.indexOf('FAIL') === 0 ? 'fail' : l.indexOf('PASS') === 0 ? 'pass' : '';
+      return '<div class="' + cls + '">' + U.esc(l) + '</div>';
+    }).join('') + '\n\n合计：' + pass + ' 通过 / ' + fail + ' 失败';
+  }
+
+  try {
+    /* 清干净 */
+    Store.wipeAll();
+
+    section('数据层');
+    var kid = Store.kids.add({ name: '测试娃', avatar: '🐰', pace: 'standard' });
+    ok('建档案', Store.kids.list().length === 1);
+    ok('默认设置', Store.settings().pace === 'standard');
+    ok('进度初始', Store.progress().yw.unit === 0);
+
+    section('任务生成');
+    var day = Task.ensure(U.today());
+    ok('生成场次 ≥1', day.plan.length >= 1, '实际 ' + day.plan.length);
+    var s0 = day.plan[0];
+    ok('认字 5 题', s0.items.chars.length === 5, s0.items.chars.length);
+    ok('拼音 6 题', s0.items.pinyin.length === 6, s0.items.pinyin.length);
+    ok('数学 5 题', s0.items.math.length === 5, s0.items.math.length);
+    ok('写字 4 字', s0.chars.length === 4, s0.chars.length);
+    var allItems = Task.sessionItems(s0);
+    ok('题目可解析', allItems.length === 16, allItems.length);
+
+    /* 练习页渲染（在做题之前） */
+    try {
+      location.hash = '#/practice?slot=0';
+      App.render();
+      ok('练习页有题卡', !!document.querySelector('.q-card'));
+      var firstStem = document.querySelector('.q-stem .stem-text');
+      ok('题干有内容', !!firstStem && firstStem.textContent.length > 2);
+      ok('有作答控件', !!document.querySelector('.q-options') || !!document.querySelector('.numpad'));
+    } catch (e) { ok('练习页有题卡', false, e.message); }
+
+    section('答题与判分');
+    var starBefore = Store.stars();
+    allItems.forEach(function (it) {
+      var ans = it.options ? it.answer : it.answer;
+      s0.answers[it.id] = { ans: ans, correct: true, tries: 1, ms: 1000 };
+      Store.addAttempt({ id: U.uid('a'), date: U.today(), subject: it.module, itemId: it.id, answer: ans, correct: true, tries: 1, ms: 1000, skill: it.skill });
+    });
+    Store.saveDay(U.today(), day);
+    ok('答题落盘', Object.keys(Store.day(U.today()).plan[0].answers).length === 16);
+
+    /* 错题 */
+    var wrongItem = allItems[0];
+    Store.recordAnswer(wrongItem, false, {});
+    ok('错题入库', !!Store.mistakeOf(wrongItem.id));
+    ok('次日复习', Store.mistakeOf(wrongItem.id).dueDate === U.addDays(U.today(), 1));
+
+    /* 打卡前置校验 */
+    var beforePhoto = Task.canCheckin(Store.day(U.today()).plan[0]);
+    ok('缺照片不能打卡', beforePhoto === false);
+    Store.day(U.today()).plan[0].photoId = 'p_test';
+    Store.saveDay(U.today(), Store.day(U.today()));
+    ok('补齐后可打卡', Task.canCheckin(Store.day(U.today()).plan[0]) === true);
+
+    var res = Task.completeSlot(U.today(), 0, { ms: 25 * 60000 });
+    ok('完成一场', !!res, JSON.stringify(res));
+    var pv = Store.progress();
+    ok('语文进度推进', pv.yw.unit * 1000 + pv.yw.node === 1000, JSON.stringify(pv.yw));
+    ok('累计场次+1', Store.progress().sessionsDone === 1);
+    ok('星星增加', Store.stars() > starBefore);
+
+    section('排程 / 欠账');
+    ok('工作日容量 1', Schedule.capacity('2026-11-03', Store.settings()) === 1, '2026-11-03 是周二');
+    ok('周末容量 2', Schedule.capacity('2026-11-07', Store.settings()) === 2);
+    ok('节假日容量 3', Schedule.capacity('2027-01-01', Store.settings()) === 3);
+    Store.saveProgress({ startDate: U.addDays(U.today(), -5), sessionsDone: 1 });
+    ok('欠账 = 4', Schedule.backlog(Store.progress(), U.today()) === 4, Schedule.backlog(Store.progress(), U.today()));
+    var eta = Schedule.catchupEta(Store.progress(), U.today(), Store.settings());
+    ok('能算出补完日期', !!(eta && eta.date), JSON.stringify(eta));
+
+    section('写字与批改');
+    Store.saveWriting({ date: U.today(), slot: 0, chars: ['我', '们'], photoId: 'p_test', scores: null, reviewedAt: null });
+    ok('待批改 1 条', Store.pendingReviews().length === 1);
+    var rec = Store.writingOf(U.today(), 0);
+    Store.saveWriting(Object.assign({}, rec, {
+      scores: { stroke: 4, structure: 4, clean: 5, complete: 5 }, note: '不错', reviewedAt: Date.now(), reviewedBy: 'parent'
+    }));
+    ok('待批改清零', Store.pendingReviews().length === 0);
+
+    section('导出 / 导入');
+    var payload = Store.exportAll();
+    var json = JSON.stringify(payload);
+    ok('JSON 有内容', json.length > 500, json.length);
+    var daysBefore = Object.keys(Store.days()).length;
+    var kidIdBefore = Store.kids.activeId();
+    var rep = Store.importAll(JSON.parse(json));
+    ok('导入报告有效', rep && rep.daysMerged >= daysBefore, JSON.stringify(rep));
+    ok('导入后孩子不变', Store.kids.activeId() === kidIdBefore);
+
+    /* ZIP 结构 */
+    var z = Exporter.buildZip([
+      { name: 'a.txt', data: new TextEncoder().encode('hello') },
+      { name: 'photos/x.jpg', data: new Uint8Array([1, 2, 3, 4]) }
+    ]);
+    ok('ZIP 生成', z && z.size > 100, z && z.size);
+    var crc = Exporter.crc32(new TextEncoder().encode('123456789'));
+    ok('CRC32 正确', crc === 0xCBF43926, crc.toString(16));
+
+    section('页面渲染');
+    function page(route) {
+      try {
+        location.hash = route;
+        App.render();
+        var v = document.getElementById('view');
+        var app = document.getElementById('app');
+        return (app.hidden ? 0 : v.childElementCount) > 0;
+      } catch (e) { out.push('  err: ' + route + ' → ' + e.message); return false; }
+    }
+    ok('今日任务页', page('#/today'));
+    ok('练习页（已答完）跳写字', (function () { location.hash = '#/practice?slot=0'; App.render(); return document.querySelectorAll('.q-card').length === 0; })());
+    ok('写字页', page('#/writing?slot=0'));
+    ok('完成页', page('#/done?slot=0'));
+    ok('成长页', page('#/growth'));
+    ok('错题本', page('#/mistakes'));
+    ok('家长锁', page('#/parent'));
+    ok('批改页', page('#/review?date=' + U.today() + '&slot=0'));
+    ok('打印页', (function () { location.hash = '#/print?slot=0'; App.render(); return !!document.querySelector('.print-sheet'); })());
+    ok('打印页有题目', document.querySelectorAll('.pr-item').length >= 10, document.querySelectorAll('.pr-item').length);
+
+    section('内容完整性');
+    var problems = Content.validate();
+    ok('内容包无结构问题', problems.length === 0, problems.slice(0, 3).join(' | '));
+
+  } catch (e) {
+    fail++;
+    out.push('EXCEPTION: ' + e.message + '\n' + (e.stack || ''));
+  }
+
+  renderResults();
+  document.title = '冒烟测试：' + pass + ' 通过 / ' + fail + ' 失败';
+})();
+</script>
+</body>
+</html>

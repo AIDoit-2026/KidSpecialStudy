@@ -1,1 +1,6 @@
 docs/每日一练-设计文档-v0.1.html
+tools/_smoke_out.html
+tools/_smoke_http.html
+tools/_smoke_err.txt
+tools/_profile/
+tools/*.png
