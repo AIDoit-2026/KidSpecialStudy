@@ -129,7 +129,16 @@
     if (session.photoId) {
       var wantId = session.photoId;
       w.Store.photoURL(wantId).then(function (url) {
-        if (url && session.photoId === wantId) paintZone(url);
+        if (session.photoId !== wantId) return;
+        if (url) { paintZone(url); return; }
+        // 照片丢了：给出兜底
+        U.clear(zone);
+        zone.appendChild(U.h('div', { class: 'u-emoji', text: '🫥' }));
+        zone.appendChild(U.h('div', { style: { fontWeight: '800', marginTop: '6px' }, text: '这张照片找不到了' }));
+        zone.appendChild(U.h('p', { text: '可能是浏览器清理了缓存。重新拍一张就行，已打的卡不受影响。' }));
+        zone.appendChild(U.h('button', {
+          class: 'btn btn-primary', style: { marginTop: '10px' }, text: '重新拍一张', onclick: pick
+        }));
       }).catch(function () { });
     }
 

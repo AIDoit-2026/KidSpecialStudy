@@ -19,13 +19,17 @@
     ));
     head.appendChild(U.h('div', { class: 'small muted', text: '答错会自动记进来。答对一次推后 3 天，再答对推后 7 天，连对 3 次就毕业啦。' }));
     if (ids.length) {
-      head.appendChild(U.h('div', { class: 'row', style: { marginTop: '12px' } },
+      head.appendChild(U.h('div', { class: 'row wrap', style: { marginTop: '12px' } },
         U.h('button', {
           class: 'btn btn-primary', text: '开始重练（' + Math.min(ids.length, 10) + ' 题）',
           onclick: function () {
             var pick = ids.slice(0, 10);
             App.go('#/practice?ids=' + pick.join(','));
           }
+        }),
+        U.h('button', {
+          class: 'btn', text: '🖨 打印错题单',
+          onclick: function () { App.go('#/print?ids=' + ids.slice(0, 10).join(',')); }
         })
       ));
     }

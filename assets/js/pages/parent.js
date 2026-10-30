@@ -65,13 +65,23 @@
       U.h('div', { class: 'k', text: '欠账' }), U.h('div', { text: sum.backlog ? sum.backlog + ' 场（' + (sum.eta && sum.eta.date ? '预计 ' + U.fmtCn(sum.eta.date) + ' 补完' : '假期补练') + '）' : '没有欠账' }),
       U.h('div', { class: 'k', text: '待批改' }), U.h('div', { text: pending.length ? pending.length + ' 条作业' : '没有' })
     ));
+    var ops = U.h('div', { class: 'row wrap', style: { marginTop: '12px' } });
     if (pending.length) {
-      c.appendChild(U.h('button', {
-        class: 'btn btn-primary btn-sm', style: { marginTop: '12px' },
-        text: '去批改（' + pending.length + '）',
+      ops.appendChild(U.h('button', {
+        class: 'btn btn-primary btn-sm', text: '去批改（' + pending.length + '）',
         onclick: function () { App.go('#/parent?tab=review'); }
       }));
     }
+    var pp = w.Store.progress();
+    ops.appendChild(U.h('button', {
+      class: 'btn btn-sm', text: '🖨 打印下一个语文节点',
+      onclick: function () { App.go('#/print?node=chinese:' + pp.yw.unit + ':' + pp.yw.node); }
+    }));
+    ops.appendChild(U.h('button', {
+      class: 'btn btn-sm', text: '🖨 打印下一个数学节点',
+      onclick: function () { App.go('#/print?node=math:' + pp.sx.unit + ':' + pp.sx.node); }
+    }));
+    c.appendChild(ops);
     view.appendChild(c);
 
     var q = U.h('div', { class: 'grid g3', style: { marginTop: '16px' } });

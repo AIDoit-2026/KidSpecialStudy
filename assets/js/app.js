@@ -71,6 +71,7 @@
     document.getElementById('app').hidden = false;
     document.getElementById('boot').hidden = true;
 
+    document.body.classList.toggle('focus-mode', key === 'practice');
     refreshChrome();
     var view = document.getElementById('view');
     U.clear(view);

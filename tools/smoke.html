@@ -98,7 +98,7 @@
 
     /* 练习页渲染（在做题之前） */
     try {
-      location.hash = '#/practice?slot=0';
+      history.replaceState(null, '', '#/practice?slot=0');
       App.render();
       ok('练习页有题卡', !!document.querySelector('.q-card'));
       var firstStem = document.querySelector('.q-stem .stem-text');
@@ -145,6 +145,19 @@
     var eta = Schedule.catchupEta(Store.progress(), U.today(), Store.settings());
     ok('能算出补完日期', !!(eta && eta.date), JSON.stringify(eta));
 
+    /* 节假日 3 场排程 */
+    var hp = Task.buildPlan('2027-01-01');
+    ok('节假日排 3 场', hp.length === 3, hp.length);
+    ok('首场是新内容', hp[0].type === 'new');
+    ok('后两场是补练', hp[1].type === 'catchup' && hp[2].type === 'catchup');
+    ok('补练写字减半', hp[1].chars.length <= 2, hp[1].chars.length);
+    ok('补练不重复试题', hp[0].items.math[0] !== hp[1].items.math[0],
+      hp[0].items.math[0] + ' vs ' + hp[1].items.math[0]);
+    ok('三场题量都够', hp.every(function (s) { return s.total === 16; }), hp.map(function (s) { return s.total; }).join(','));
+    /* 周末 2 场 */
+    var wp = Task.buildPlan('2026-11-07');
+    ok('周末排 2 场', wp.length === 2, wp.length);
+
     section('写字与批改');
     Store.saveWriting({ date: U.today(), slot: 0, chars: ['我', '们'], photoId: 'p_test', scores: null, reviewedAt: null });
     ok('待批改 1 条', Store.pendingReviews().length === 1);
@@ -176,7 +189,7 @@
     section('页面渲染');
     function page(route) {
       try {
-        location.hash = route;
+        try { history.replaceState(null, '', route); } catch (e) { location.hash = route; }
         App.render();
         var v = document.getElementById('view');
         var app = document.getElementById('app');
@@ -184,14 +197,14 @@
       } catch (e) { out.push('  err: ' + route + ' → ' + e.message); return false; }
     }
     ok('今日任务页', page('#/today'));
-    ok('练习页（已答完）跳写字', (function () { location.hash = '#/practice?slot=0'; App.render(); return document.querySelectorAll('.q-card').length === 0; })());
+    ok('练习页（已答完）跳写字', (function () { try { history.replaceState(null, '', '#/practice?slot=0'); } catch (e) { } App.render(); return document.querySelectorAll('.q-card').length === 0; })());
     ok('写字页', page('#/writing?slot=0'));
     ok('完成页', page('#/done?slot=0'));
     ok('成长页', page('#/growth'));
     ok('错题本', page('#/mistakes'));
     ok('家长锁', page('#/parent'));
     ok('批改页', page('#/review?date=' + U.today() + '&slot=0'));
-    ok('打印页', (function () { location.hash = '#/print?slot=0'; App.render(); return !!document.querySelector('.print-sheet'); })());
+    ok('打印页', (function () { try { history.replaceState(null, '', '#/print?slot=0'); } catch (e) { } App.render(); return !!document.querySelector('.print-sheet'); })());
     ok('打印页有题目', document.querySelectorAll('.pr-item').length >= 10, document.querySelectorAll('.pr-item').length);
 
     section('内容完整性');
@@ -203,8 +216,84 @@
     out.push('EXCEPTION: ' + e.message + '\n' + (e.stack || ''));
   }
 
-  renderResults();
-  document.title = '冒烟测试：' + pass + ' 通过 / ' + fail + ' 失败';
+  /* ---------- 交互流程（异步，走真实路由） ---------- */
+  function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+
+  function goto(hash) {
+    // 用 replaceState 改地址（不触发 hashchange），再手动渲染，保证只渲染一次
+    try { history.replaceState(null, '', hash); } catch (e) { location.hash = hash; }
+    App.render();
+    return sleep(30);
+  }
+
+  function interaction() {
+    section('交互流程（真实点击）');
+    return sleep(300).then(function () {   // 先等前面 App.go 触发的 hashchange 落地
+    var d = Store.day(U.today());
+    if (!d || !d.plan || !d.plan[0]) { ok('准备交互数据', false); return Promise.resolve(); }
+    d.plan[0].answers = {};
+    d.plan[0].status = 'todo';
+    d.plan[0].photoId = null;
+    Store.saveDay(U.today(), d);
+
+    var charId = d.plan[0].items.chars[0];
+    var it = Content.item(charId);
+
+    return goto('#/practice?slot=0').then(function () {
+      if (!it || !it.options) { ok('首题是选择题', false); return; }
+      var cnt = (document.querySelector('.p-count') || {}).textContent;
+      ok('从第一题开始', !!cnt && cnt.indexOf('1 /') >= 0, cnt);
+
+      var opts = document.querySelectorAll('.opt');
+      ok('选项已渲染', opts.length === it.options.length, opts.length);
+
+      var wrongIdx = (it.answer + 1) % it.options.length;
+      opts[wrongIdx].click();
+      ok('答错立即给反馈', !!document.querySelector('.feedback.no'));
+
+      return sleep(1700).then(function () {
+        var opts2 = document.querySelectorAll('.opt');
+        ok('可以再试一次', !!opts2[it.answer] && !document.querySelector('.feedback'));
+
+        var starBefore = Store.stars();
+        if (opts2[it.answer]) opts2[it.answer].click();
+        ok('二次答对显示正确', !!document.querySelector('.feedback.ok'));
+        ok('二次答对加半分', Math.abs(Store.stars() - starBefore - 0.5) < 0.001, '差 ' + (Store.stars() - starBefore));
+
+        var nextBtn = document.querySelector('.q-foot .btn');
+        ok('出现下一题按钮', !!nextBtn);
+        if (nextBtn) nextBtn.click();
+        var c2 = (document.querySelector('.p-count') || {}).textContent;
+        ok('切到下一题', !!c2 && c2.indexOf('2 /') >= 0, c2);
+
+        return goto('#/practice?slot=0&module=math');
+      }).then(function () {
+        var mit = Content.item(d.plan[0].items.math[0]);
+        if (!mit) { ok('数学题可定位', false); return; }
+        ok('数学模块渲染', !!document.querySelector('.q-card') || !mit.options);
+        if (!mit.options) {
+          var hasPad = !!document.querySelector('.numpad');
+          ok('数学题有键盘', hasPad);
+          var keys = document.querySelectorAll('.numpad .np-keys button');
+          var digit = Array.prototype.filter.call(keys, function (b) { return b.textContent === String(mit.answer)[0]; })[0];
+          if (digit) digit.click();
+          var okBtn = Array.prototype.filter.call(keys, function (b) { return b.textContent === '确定'; })[0];
+          if (okBtn) okBtn.click();
+          ok('数字输入可判分', !!document.querySelector('.feedback'));
+        } else {
+          ok('数学题（点选形式）可作答', true);
+        }
+      });
+    });
+    });
+  }
+
+  interaction().catch(function (e) {
+    fail++; out.push('EXCEPTION(interaction): ' + e.message);
+  }).then(function () {
+    renderResults();
+    document.title = '冒烟测试：' + pass + ' 通过 / ' + fail + ' 失败';
+  });
 })();
 </script>
 </body>

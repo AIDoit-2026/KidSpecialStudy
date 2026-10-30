@@ -53,24 +53,46 @@
     var date = U.today();
     var slot = Number(query.slot || 0);
     var mode = query.mode || 'all';
+    var kid = w.Store.kids.active();
     var day = w.Task.ensure(date);
     var session = day.plan[slot];
-    if (!session) { App.go('#/today'); return; }
-    var kid = w.Store.kids.active();
+
+    /* 三种来源：默认今日某场 / ids=错题复习单 / node=指定节点 */
+    var items = [];
+    var chars = [];
+    var subtitle = '';
+    var backHash = '#/today';
+
+    if (query.ids) {
+      items = w.Content.items(query.ids.split(',').filter(Boolean));
+      subtitle = '错题复习单';
+      backHash = '#/mistakes';
+    } else if (query.node) {
+      var np = String(query.node).split(':');   // chinese:2:1
+      var nb = w.Content.node(np[0] === 'math' ? 'math' : 'chinese', Number(np[1]), Number(np[2]));
+      if (nb) {
+        items = nb.items;
+        subtitle = nb.title;
+      }
+      backHash = '#/today';
+    } else {
+      if (!session) { App.go('#/today'); return; }
+      items = w.Task.sessionItems(session);
+      chars = session.chars || [];
+      subtitle = '第 ' + (slot + 1) + ' 场';
+    }
 
     var bar = U.h('div', { class: 'no-print', style: { display: 'flex', gap: '10px', marginBottom: '14px', flexWrap: 'wrap' } });
     bar.appendChild(U.h('button', { class: 'btn btn-primary', text: '🖨 打印这张', onclick: function () { w.print(); } }));
-    bar.appendChild(U.h('button', { class: 'btn', text: '← 返回今日', onclick: function () { App.go('#/today'); } }));
+    bar.appendChild(U.h('button', { class: 'btn', text: '← 返回', onclick: function () { App.go(backHash); } }));
     bar.appendChild(U.h('div', { class: 'small muted', style: { alignSelf: 'center' }, text: '提示：打印时选「彩色」「A4 纵向」，纸张边距用「默认」即可。' }));
     view.appendChild(bar);
 
     var sheet = U.h('div', { class: 'print-sheet' });
     sheet.appendChild(U.h('div', { class: 'pr-head' },
       U.h('div', { class: 'pr-title', text: '宝贝每日一练 · 一年级上册' }),
-      U.h('div', { class: 'pr-meta', text: '姓名：' + (kid ? kid.name : '＿＿＿') + '　　日期：' + date + '　　第 ' + (slot + 1) + ' 场' })
+      U.h('div', { class: 'pr-meta', text: '姓名：' + (kid ? kid.name : '＿＿＿') + '　　日期：' + date + '　　' + subtitle })
     ));
-
-    var items = w.Task.sessionItems(session);
     var groups = [
       { key: 'chars', name: '一、认字', list: items.filter(function (i) { return i.module === 'chars'; }) },
       { key: 'pinyin', name: '二、拼音', list: items.filter(function (i) { return i.module === 'pinyin'; }) },
@@ -85,11 +107,15 @@
       });
     }
 
-    if (session.chars && session.chars.length) {
+    if (chars && chars.length) {
       sheet.appendChild(U.h('div', { class: 'pr-section', text: '四、写字（每字写满一行）' }));
-      session.chars.forEach(function (c) {
+      chars.forEach(function (c) {
         sheet.appendChild(writingRow(c, mode === 'writing' ? 6 : 4));
       });
+    }
+
+    if (!items.length && !(chars && chars.length)) {
+      sheet.appendChild(U.h('div', { class: 'empty' }, '没有可打印的题目'));
     }
 
     sheet.appendChild(U.h('div', { class: 'pr-foot' },

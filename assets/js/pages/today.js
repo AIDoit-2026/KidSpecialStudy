@@ -169,13 +169,19 @@
 
     /* ---- 下次节假日提示 ---- */
     var nh = w.Schedule.nextHolidays(date, 1);
-    if (sum.backlog > 0 && nh.length) {
+    if (sum.backlog > 0) {
+      var etaTxt = sum.eta && sum.eta.date
+        ? U.fmtCn(sum.eta.date) + '（' + U.weekdayCn(sum.eta.date) + '）'
+        : '假期';
+      var holTxt = nh.length
+        ? '最近的' + nh[0].name + '是 ' + U.fmtCn(nh[0].date) + '，放假 ' + nh[0].days + ' 天，每天最多 3 场。'
+        : '假期按国务院放假安排，可在家长中心维护。';
       view.appendChild(U.h('div', { class: 'card', style: { marginTop: '16px' } },
-        U.h('div', { class: 'row' },
+        U.h('div', { class: 'row', style: { alignItems: 'flex-start' } },
           U.h('span', { style: { fontSize: '24px' }, text: '📅' }),
           U.h('div', {},
-            U.h('div', { style: { fontWeight: '800', fontSize: '15px' }, text: '欠下的 ' + sum.backlog + ' 场，安排到假期补' }),
-            U.h('div', { class: 'small muted', text: '最近的' + nh[0].name + '：' + U.fmtCn(nh[0].date) + ' 起 ' + nh[0].days + ' 天，每天最多 3 场（含补练）。' })
+            U.h('div', { style: { fontWeight: '800', fontSize: '15px' }, text: '还差 ' + sum.backlog + ' 场，' + etaTxt + '前后能补完' }),
+            U.h('div', { class: 'small muted', text: holTxt })
           )
         )
       ));

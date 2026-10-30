@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title>frame preview</title>
+<style>html,body{margin:0;background:#ddd;display:grid;place-items:start center}
+iframe{border:0;background:#fff;box-shadow:0 0 20px rgba(0,0,0,.2)}</style></head>
+<body>
+<script>
+var q = new URLSearchParams(location.search);
+var w = q.get('w') || 375, h = q.get('h') || 812, hash = q.get('hash') || '#/today';
+var f = document.createElement('iframe');
+f.width = w; f.height = h;
+f.style.width = w + 'px'; f.style.height = h + 'px';
+f.src = '../index.html' + hash;
+document.body.appendChild(f);
+</script>
+</body></html>

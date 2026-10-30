@@ -246,7 +246,7 @@ textarea.input{min-height:84px;resize:vertical}
 .decor-item.on{filter:none;opacity:1}
 
 /* ---------- 练习 ---------- */
-.practice-wrap{max-width:860px;margin:0 auto;display:flex;flex-direction:column}
+.practice-wrap{max-width:860px;margin:0 auto;display:flex;flex-direction:column;justify-content:center;min-height:calc(100vh - 170px)}
 .p-head{display:flex;align-items:center;gap:14px;margin-bottom:16px}
 .p-head .p-bar{flex:1;height:12px;border-radius:99px;background:#F2EAF0;overflow:hidden}
 .p-head .p-bar i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,var(--blue),var(--green));transition:width .3s}
@@ -505,6 +505,8 @@ textarea.input{min-height:84px;resize:vertical}
   }
   .bottom-tabs a .ni{font-size:20px}
   .bottom-tabs a.active{color:var(--pink-d);background:#FFF2F7}
+  body.focus-mode .bottom-tabs{display:none}
+  body.focus-mode .view{padding-bottom:24px}
   .star-chip{padding:5px 11px;font-size:13px}
   .kid-chip{padding:4px 10px 4px 4px;font-size:13px}
   .hero{padding:20px 18px}
