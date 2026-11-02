@@ -105,6 +105,7 @@
       sfx: true,
       review: true,
       charsPerDay: 4,
+      writingMode: 'hanzi',     // 写字任务默认写汉字，可切成写拼音
       catchupWriting: true,     // 补练场次是否含写字
       // 每天「应完成」的场次：工作日 1 / 周六 3 / 周日 2 / 法定节假日 3
       satCapacity: 3,           // 周六固定场次

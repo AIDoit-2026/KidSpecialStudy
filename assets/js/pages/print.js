@@ -6,7 +6,7 @@
     var line = U.h('div', { class: 'pr-item' });
     var stem = U.h('div', { class: 'pr-stem' });
     stem.appendChild(U.h('span', { class: 'pr-no', text: no + '.' }));
-    stem.appendChild(U.h('span', { text: item.stem }));
+    stem.appendChild(U.h('span', { class: item.stemPy ? 'pr-pyt' : '', text: item.stem }));
     line.appendChild(stem);
 
     var fig = null;
@@ -45,6 +45,29 @@
         tian.appendChild(U.h('span', { class: 'pr-glyph', text: ch }));
       }
       row.appendChild(tian);
+    }
+    return row;
+  }
+
+  /* 四线三格拼音描红行 */
+  function pinyinRow(p, count) {
+    var row = U.h('div', { class: 'pr-write-row' });
+    row.appendChild(U.h('div', { class: 'pr-write-label' },
+      U.h('div', { class: 'py', style: { fontSize: '22px', lineHeight: '1' }, text: p })
+    ));
+    /* 音节越长字越小，保证描红样本不越出格子 */
+    var k = p.length >= 5 ? 1.3 : p.length === 4 ? 1.55 : 1.97;
+    for (var i = 0; i < (count || 4); i++) {
+      var cell = U.h('div', { class: 'pr-py' });
+      cell.appendChild(U.h('i'));
+      cell.appendChild(U.h('i'));
+      if (i === 0) {
+        cell.appendChild(U.h('div', {
+          class: 'py ghost', text: p,
+          style: { fontSize: 'calc(var(--band) * ' + k + ')' }
+        }));
+      }
+      row.appendChild(cell);
     }
     return row;
   }
@@ -108,9 +131,13 @@
     }
 
     if (chars && chars.length) {
-      sheet.appendChild(U.h('div', { class: 'pr-section', text: '四、写字（每字写满一行）' }));
+      var isPy = query.py === '1' ||
+        ((session && session.writingMode) || w.Store.settings().writingMode) === 'pinyin';
+      sheet.appendChild(U.h('div', { class: 'pr-section', text: isPy ? '四、写拼音（每个写满一行，注意四线三格）' : '四、写字（每字写满一行）' }));
       chars.forEach(function (c) {
-        sheet.appendChild(writingRow(c, mode === 'writing' ? 6 : 4));
+        var n = mode === 'writing' ? 6 : 4;
+        if (isPy) sheet.appendChild(pinyinRow(w.CHARS[c] ? w.CHARS[c].p : '', n));
+        else sheet.appendChild(writingRow(c, n));
       });
     }
 

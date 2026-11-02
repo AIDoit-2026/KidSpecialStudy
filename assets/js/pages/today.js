@@ -182,9 +182,12 @@
         done: pr.math.done, total: pr.math.total,
         onClick: function () { App.go('#/practice?slot=' + curIdx + '&module=math'); }
       }));
+      var pyMode = (cur.writingMode || settings.writingMode) === 'pinyin';
       grid.appendChild(card({
-        emoji: '🖌', name: '写字', color: 'var(--green)',
-        sub: cur.chars.length ? cur.chars.length + ' 个字：' + cur.chars.slice(0, 4).join(' ') : '本场无写字',
+        emoji: '🖌', name: pyMode ? '写拼音' : '写字', color: 'var(--green)',
+        sub: cur.chars.length
+          ? (pyMode ? cur.chars.length + ' 个拼音：' : cur.chars.length + ' 个字：') + cur.chars.slice(0, 4).join(' ')
+          : '本场无写字',
         done: pr.writing.done, total: pr.writing.total,
         num: !cur.chars.length ? '本场无需拍照' : (pr.writing.done ? '✓ 已上传 1 张' : '拍 1 张就够'),
         onClick: function () { App.go('#/writing?slot=' + curIdx); }

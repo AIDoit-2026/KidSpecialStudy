@@ -372,8 +372,24 @@
       cpw.appendChild(U.h('option', { value: n, text: n + ' 个字/天', selected: st.charsPerDay === n }));
     });
     cpw.addEventListener('change', function () { w.Store.saveSettings({ charsPerDay: Number(cpw.value) }); });
-    cfg.appendChild(U.h('div', { class: 'field', style: { marginTop: '14px', maxWidth: '240px' } },
-      U.h('label', { text: '每天写字个数' }), cpw));
+
+    var wm = U.h('select', { class: 'input', style: { maxWidth: '160px' } });
+    [['hanzi', '写汉字'], ['pinyin', '写拼音']].forEach(function (o) {
+      wm.appendChild(U.h('option', {
+        value: o[0], text: o[1], selected: (st.writingMode || 'hanzi') === o[0]
+      }));
+    });
+    wm.addEventListener('change', function () {
+      w.Store.saveSettings({ writingMode: wm.value });
+      U.toast('已保存，下次写字按「' + (wm.value === 'pinyin' ? '写拼音' : '写汉字') + '」来');
+    });
+
+    cfg.appendChild(U.h('div', { class: 'row wrap', style: { marginTop: '14px', gap: '18px' } },
+      U.h('div', { class: 'field', style: { margin: 0, maxWidth: '240px' } },
+        U.h('label', { text: '每天写字个数' }), cpw),
+      U.h('div', { class: 'field', style: { margin: 0, maxWidth: '240px' } },
+        U.h('label', { text: '写字内容' }), wm)
+    ));
 
     cfg.appendChild(U.h('div', { class: 'row wrap', style: { gap: '10px', marginTop: '10px' } },
       U.h('button', {

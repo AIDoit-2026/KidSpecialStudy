@@ -24,6 +24,23 @@
     return card;
   }
 
+  /* 四线三格范写（拼音书写体） */
+  function pinyinCard(c) {
+    var ch = w.CHARS[c];
+    var p = ch ? ch.p : '';
+    var card = U.h('div', { class: 'py-card' });
+    var grid = U.h('div', { class: 'py-grid' });
+    for (var i = 0; i < 4; i++) grid.appendChild(U.h('i'));
+    grid.appendChild(U.h('div', { class: 'py-w', text: p }));
+    card.appendChild(grid);
+    var name = U.h('div', { class: 'py-name' });
+    name.appendChild(U.h('b', { text: c }));
+    name.appendChild(U.h('span', { class: 'py', text: p }));
+    if (ch && ch.w && ch.w.length) name.appendChild(U.h('span', { text: '　' + ch.w[0] }));
+    card.appendChild(name);
+    return card;
+  }
+
   function render(view, query) {
     var date = U.today();
     var slot = Number(query.slot || 0);
@@ -35,21 +52,57 @@
     view.appendChild(wrap);
 
     var chars = session.chars || [];
+    var mode = (query.mode === 'pinyin' || query.mode === 'hanzi')
+      ? query.mode
+      : (session.writingMode || w.Store.settings().writingMode || 'hanzi');
+    var isPy = mode === 'pinyin';
+
     var head = U.h('div', { class: 'card' });
     head.appendChild(U.h('div', { class: 'card-title' },
-      U.h('h2', { text: '🖌 今天的字（' + chars.length + ' 个）' }),
+      U.h('h2', { text: (isPy ? '🖊 今天的拼音（' : '🖌 今天的字（') + chars.length + ' 个）' }),
       U.h('div', { class: 'row' },
         U.h('span', { class: 'pill green', text: '写完拍照上传' }),
-        U.h('button', { class: 'btn btn-sm', text: '🖨 打印格子', onclick: function () { App.go('#/print?slot=' + slot + '&mode=writing'); } })
+        U.h('button', { class: 'btn btn-sm', text: '🖨 打印格子', onclick: function () { App.go('#/print?slot=' + slot + '&mode=writing' + (isPy ? '&py=1' : '')); } })
       )
     ));
-    head.appendChild(U.h('div', { class: 'small muted', text: '每个字在本子上写一行，这一场的字写在同一页上，最后拍 1 张照片就够（不用一个字一张）。可以先看笔顺，跟着数一数。' }));
+    head.appendChild(U.h('div', { class: 'small muted',
+      text: isPy
+        ? '把每个字的拼音在本子上写一行（四线三格），写在同一页上。声调要标在正确的字母上。'
+        : '每个字在本子上写一行，这一场的字写在同一页上，最后拍 1 张照片就够（不用一个字一张）。可以先看笔顺，跟着数一数。' }));
+
+    /* 写汉字 / 写拼音 可以随时切换 */
+    var seg = U.h('div', { class: 'row', style: { marginTop: '12px' } });
+    [['hanzi', '✏️ 写汉字'], ['pinyin', '🖊 写拼音']].forEach(function (opt) {
+      seg.appendChild(U.h('button', {
+        class: 'btn btn-sm' + (mode === opt[0] ? ' btn-primary' : ''),
+        text: opt[1],
+        onclick: function () { setMode(opt[0]); }
+      }));
+    });
+    if (chars.length) head.appendChild(seg);
     wrap.appendChild(head);
+
+    function setMode(m) {
+      if (m === mode) return;
+      mode = m;
+      session.writingMode = m;
+      w.Store.saveDay(date, day);
+      w.Store.saveSettings({ writingMode: m });
+      var rec0 = w.Store.writingOf(date, slot);
+      if (rec0) w.Store.saveWriting(Object.assign({}, rec0, { mode: m }));
+      // 带 ?mode= 进来时先把参数去掉，否则重绘又会被它盖回去
+      if (query.mode) history.replaceState(null, '', '#/writing?slot=' + slot);
+      App.render();
+    }
 
     if (!chars.length) {
       wrap.appendChild(U.h('div', { class: 'card' },
         U.h('div', { class: 'empty' }, U.h('span', { class: 'e-emoji', text: '🌤' }), '这一场没有写字任务，可以直接去打卡。')
       ));
+    } else if (isPy) {
+      var pyRows = U.h('div', { class: 'py-rows', style: { marginTop: '16px' } });
+      chars.forEach(function (c) { pyRows.appendChild(pinyinCard(c)); });
+      wrap.appendChild(pyRows);
     } else {
       var grid = U.h('div', { class: 'write-grid', style: { marginTop: '16px' } });
       chars.forEach(function (c) { grid.appendChild(charCard(c)); });
@@ -93,7 +146,7 @@
       } else {
         zone.appendChild(U.h('div', { class: 'u-emoji', text: '📷' }));
         zone.appendChild(U.h('div', { style: { fontWeight: '800', marginTop: '6px' }, text: '写好了，拍 1 张照片' }));
-        zone.appendChild(U.h('p', { text: '这一场的字写在同一页上，整页拍清楚就行' }));
+        zone.appendChild(U.h('p', { text: isPy ? '这一场的拼音写在同一页上，整页拍清楚就行' : '这一场的字写在同一页上，整页拍清楚就行' }));
         zone.appendChild(U.h('button', { class: 'btn btn-primary', style: { marginTop: '10px' }, text: '拍照 / 选择照片', onclick: pick }));
       }
     }
@@ -109,8 +162,7 @@
         U.toast('AI 正在看照片…');
         w.AI.scoreDirect(date, slot).then(function (r) {
           var s = r.scores || {};
-          U.toast('AI 已评分：' + ['stroke', 'structure', 'clean', 'complete']
-            .map(function (d) { return s[d] || '-'; }).join(' / '), 'ok');
+          U.toast('AI 已评分：' + w.AI.DIMS.map(function (d) { return w.AI.dimLabel(d, mode) + ' ' + (s[d] || '-'); }).join('　'), 'ok');
           App.go('#/review?date=' + date + '&slot=' + slot);
         }).catch(function (e) { U.toast('AI 评分失败：' + e.message, 'no'); });
       });
@@ -145,7 +197,7 @@
           session.photoId = pid;
           w.Store.saveDay(date, day);
           w.Store.saveWriting({
-            date: date, slot: slot, chars: chars, photoId: pid,
+            date: date, slot: slot, chars: chars, photoId: pid, mode: mode,
             scores: null, note: '', reviewedAt: null
           });
           if (!session._photoStar) {

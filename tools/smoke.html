@@ -103,6 +103,53 @@
     var allItems = Task.sessionItems(s0);
     ok('题目可解析', allItems.length === 16, allItems.length);
 
+    /* 内容质量：不出重复题、不出抄字母的送分题 */
+    var pyStems = {}, pyDup = 0, pyCount = 0;
+    Content.allNodes('chinese').forEach(function (n) {
+      n.items.filter(function (i) { return i.module === 'pinyin'; }).forEach(function (i) {
+        pyCount++;
+        if (pyStems[i.stem]) pyDup++; else pyStems[i.stem] = 1;
+      });
+    });
+    ok('拼音题全书不重复', pyDup === 0, '共 ' + pyCount + ' 题，重复 ' + pyDup);
+    var latin = /[a-zA-Zāáǎàēéěèīíǐìōóǒòūúǔùǖǘǚǜü]/;
+    var blend = [];
+    Content.allNodes('chinese').forEach(function (n) {
+      n.items.forEach(function (i) { if (i.skill === '拼音.拼读') blend.push(i); });
+    });
+    ok('拼读题选项是汉字', blend.length > 0 && blend.every(function (i) {
+      return i.options.every(function (o) { return !latin.test(o); });
+    }), blend.length + ' 题');
+    var allStems = {}, allDup = 0;
+    Content.allNodes('chinese').forEach(function (n) {
+      n.items.forEach(function (i) { if (allStems[i.stem]) allDup++; else allStems[i.stem] = 1; });
+    });
+    ok('语文题全书不重复', allDup === 0, '重复 ' + allDup);
+    var shortNode = 0, charCount = 0, typeSet = {};
+    Content.allNodes('chinese').forEach(function (n) {
+      var cn = n.items.filter(function (i) { return i.module === 'chars'; }).length;
+      charCount += cn;
+      if (cn !== 5 || n.items.length !== 11) shortNode++;
+      n.items.forEach(function (i) {
+        if (i.module === 'chars' && i.skill) typeSet[i.skill] = 1;
+      });
+    });
+    ok('每场认字题都是 5 题', shortNode === 0, shortNode + ' 个节点不足');
+    var sylItems = [];
+    Content.allNodes('chinese').forEach(function (n) {
+      n.items.forEach(function (i) { if (i.skill === '认字.听音选字') sylItems.push(i); });
+    });
+    ok('听音选字有 7 种问法', Object.keys(typeSet).length >= 7, Object.keys(typeSet).join('/'));
+    ok('听音选字无同音干扰', sylItems.length > 0 && sylItems.every(function (i) {
+      var a = CHARS[i.options[i.answer]];
+      return a && i.options.every(function (o, k) {
+        return k === i.answer || !CHARS[o] || CHARS[o].p !== a.p;
+      });
+    }), sylItems.length + ' 题');
+    ok('写字默认写汉字', Store.settings().writingMode === 'hanzi', Store.settings().writingMode);
+    ok('拼音评分提示词区分占格', AI.promptFor({ chars: ['天'], mode: 'pinyin' }).indexOf('四线三格') >= 0);
+    ok('汉字评分提示词用笔画', AI.promptFor({ chars: ['天'] }).indexOf('笔顺') >= 0);
+
     /* 练习页渲染（在做题之前） */
     try {
       history.replaceState(null, '', '#/practice?slot=0');

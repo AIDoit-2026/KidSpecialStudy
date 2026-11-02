@@ -7,8 +7,30 @@
 
   var DIMS = ['stroke', 'structure', 'clean', 'complete'];
   var DIM_CN = { stroke: '笔画正确', structure: '间架结构', clean: '整洁规范', complete: '完成度' };
+  /* 写拼音时同一个分项换一套说法 */
+  var DIM_CN_PY = { stroke: '字母形体', structure: '占格位置', clean: '声调与整洁', complete: '完成度' };
+
+  function dimCN(mode) { return mode === 'pinyin' ? DIM_CN_PY : DIM_CN; }
+  function dimLabel(key, mode) { return dimCN(mode)[key] || key; }
+
+  function pinyinOf(rec) {
+    return (rec.chars || []).map(function (c) {
+      return w.CHARS && w.CHARS[c] ? c + ' ' + w.CHARS[c].p : c;
+    }).join('、');
+  }
 
   function promptFor(rec) {
+    if (rec && rec.mode === 'pinyin') {
+      return '你是一位小学一年级语文老师，正在批改学生的手写拼音作业照片。\n' +
+        '本次要求写的拼音（字 + 正确读音）：' + pinyinOf(rec) + '\n' +
+        '请从四个维度分别打 1~5 分（整数）：\n' +
+        '1) 字母形体 stroke：字母有没有写对；a、g 是否写成课本上的单层写法；b/d、p/q 有没有写反；n 与 h、u 与 ü 有没有混\n' +
+        '2) 占格位置 structure：是否写在四线三格的中格；b d h l 向上伸到上格；g p q y 向下伸到下格\n' +
+        '3) 声调与整洁 clean：声调符号是否标在正确的字母上、方向对不对，卷面有无涂改\n' +
+        '4) 完成度 complete：是否按要求每个拼音写满一行\n' +
+        '只输出 JSON，不要任何解释：\n' +
+        '{"scores":{"stroke":4,"structure":3,"clean":4,"complete":5},"note":"一句鼓励或建议，20 字以内"}';
+    }
     return '你是一位小学一年级语文老师，正在批改学生的手写作业照片。\n' +
       '本次要求写的字：' + (rec.chars || []).join('、') + '\n' +
       '请从四个维度分别打 1~5 分（整数）：\n' +
@@ -43,6 +65,7 @@
         date: rec.date,
         slot: rec.slot || 0,
         chars: rec.chars || [],
+        mode: rec.mode || 'hanzi',
         image: 'photos/' + rec.date + '_' + (rec.slot || 0) + '.jpg',
         prompt: promptFor(rec),
         schema: { stroke: '1-5', structure: '1-5', clean: '1-5', complete: '1-5', note: 'string' },
@@ -234,7 +257,8 @@
   }
 
   w.AI = {
-    DIMS: DIMS, DIM_CN: DIM_CN,
+    DIMS: DIMS, DIM_CN: DIM_CN, DIM_CN_PY: DIM_CN_PY,
+    dimCN: dimCN, dimLabel: dimLabel,
     promptFor: promptFor, pendingTasks: pendingTasks,
     exportPackage: exportPackage, applyResult: applyResult, importResultFile: importResultFile,
     scoreDirect: scoreDirect, recordId: recordId,

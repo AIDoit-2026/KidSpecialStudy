@@ -4,6 +4,15 @@
 
   var DIMS = ['stroke', 'structure', 'clean', 'complete'];
   var DIM_CN = { stroke: '笔画正确', structure: '间架结构', clean: '整洁规范', complete: '完成度' };
+  var DIM_CN_PY = { stroke: '字母形体', structure: '占格位置', clean: '声调与整洁', complete: '完成度' };
+  var PRESET_NOTES_PY = [
+    '拼音写得很工整，声调也标对了 👏',
+    '字母要写在四线三格的中格里',
+    '声调符号别忘啦，标在元音上',
+    'a 和 g 写成一层的小尾巴就对啦',
+    'b 和 d 别写反，看清小肚子',
+    '一行写完，卷面干干净净'
+  ];
   var PRESET_NOTES = [
     '今天写得很认真，继续保持！',
     '间架结构再紧凑一点 📏',
@@ -44,6 +53,8 @@
       if (v !== null) scores[d] = v;
     });
     var note = rec.note || '';
+    var isPy = rec.mode === 'pinyin';
+    var DIM_LABEL = isPy ? DIM_CN_PY : DIM_CN;
 
     var wrap = U.h('div', { class: 'grid', style: { gridTemplateColumns: 'minmax(0,1.1fr) minmax(0,1fr)', gap: '16px', alignItems: 'start' } });
     view.appendChild(wrap);
@@ -52,7 +63,7 @@
     var left = U.h('div', { class: 'card' });
     left.appendChild(U.h('div', { class: 'card-title' },
       U.h('h2', { text: U.fmtCn(date) + ' 第 ' + (slot + 1) + ' 场' }),
-      U.h('span', { class: 'pill purple', text: (rec.chars || []).join(' ') })
+      U.h('span', { class: 'pill purple', text: (isPy ? '拼音 ' : '') + (rec.chars || []).join(' ') })
     ));
     var photoBox = U.h('div', { style: { borderRadius: '14px', overflow: 'hidden', background: '#F7F2F5', minHeight: '220px', display: 'grid', placeItems: 'center' } });
     photoBox.appendChild(U.h('div', { class: 'muted small', text: '照片加载中…' }));
@@ -119,7 +130,7 @@
     var starRows = {};
     DIMS.forEach(function (d) {
       var row = U.h('div', { class: 'score-row' });
-      row.appendChild(U.h('div', { class: 'sr-name', text: DIM_CN[d] }));
+      row.appendChild(U.h('div', { class: 'sr-name', text: DIM_LABEL[d] }));
       var pick = U.h('div', { class: 'stars-pick' });
       var btns = [];
       for (var i = 1; i <= 5; i++) {
@@ -146,7 +157,7 @@
     }
 
     var chips = U.h('div', { class: 'chips', style: { marginTop: '14px' } });
-    PRESET_NOTES.forEach(function (t) {
+    (isPy ? PRESET_NOTES_PY : PRESET_NOTES).forEach(function (t) {
       chips.appendChild(U.h('button', {
         text: t,
         onclick: function () {

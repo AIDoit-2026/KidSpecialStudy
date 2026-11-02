@@ -1,3 +1,10 @@
+/* 拼音书写体：Andika（SIL，OFL 1.1），单层 a / g，跟课本一致 */
+@font-face{
+  font-family:"Andika PY";
+  src:url("../fonts/Andika-Regular.ttf") format("truetype");
+  font-weight:400;font-style:normal;font-display:swap;
+}
+
 /* ============================================================
    宝贝每日一练 · 全站样式
    令牌沿用「宝贝学习乐园」，PC 优先，向下适配 iPad / 手机
@@ -37,6 +44,7 @@
   --side-w:240px;
   --font:"PingFang SC","Microsoft YaHei","Hiragino Sans GB","Noto Sans CJK SC",system-ui,-apple-system,"Segoe UI",sans-serif;
   --font-kai:"KaiTi","STKaiti","Kaiti SC","Songti SC",serif;
+  --font-py:"Andika PY","Segoe Print","Chalkboard SE","Ink Free","Comic Sans MS","Microsoft YaHei",sans-serif;
 }
 
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -56,6 +64,8 @@ a{color:var(--pink);text-decoration:none}
 img{max-width:100%;display:block}
 [hidden]{display:none !important}
 ::selection{background:rgba(255,107,157,.2)}
+.py,.q-py .stem-text,.q-py .opt,.q-py .fb-explain{font-family:var(--font-py)}
+.q-py.q-py-opt .opt > span:last-child{font-size:1.12em}
 
 /* ---------- 骨架 ---------- */
 .app{
@@ -146,6 +156,9 @@ img{max-width:100%;display:block}
 .btn-danger{background:#FFF0F2;color:#D93A5B;box-shadow:inset 0 0 0 1.5px #FFD6DE}
 .btn-lg{padding:18px 30px;font-size:20px;border-radius:18px;min-height:64px}
 .btn-sm{padding:7px 14px;font-size:13px;border-radius:10px;box-shadow:none;background:#F7F3F6}
+.btn-sm.btn-primary{background:linear-gradient(135deg,var(--pink),#FF8FB6);color:#fff}
+.btn-sm.btn-blue{background:linear-gradient(135deg,var(--blue),#79DDD6);color:#0C4A46}
+.btn-sm.btn-danger{background:#FFF0F2;color:#D93A5B}
 .btn-block{width:100%}
 
 .pill{display:inline-flex;align-items:center;gap:6px;padding:4px 11px;border-radius:999px;font-size:12px;font-weight:700;background:#F6F2F5;color:var(--ink-2)}
@@ -364,6 +377,27 @@ textarea.input{min-height:84px;resize:vertical}
 .stroke-list{display:flex;flex-wrap:wrap;gap:4px;justify-content:center;margin-top:6px}
 .stroke-list span{font-size:11px;background:#F6F1F4;border-radius:6px;padding:2px 6px;color:var(--ink-2)}
 
+.py-card{background:#fff;border-radius:18px;box-shadow:var(--shadow);padding:14px;text-align:center}
+.py-grid{
+  position:relative;--band:30px;height:calc(var(--band) * 3);
+  border:2px solid #F0B8CC;border-radius:6px;background:#fff;overflow:hidden;
+}
+.py-grid i{position:absolute;left:0;right:0;height:1px;background:#F3B7C9}
+.py-grid i:nth-of-type(1){top:0;background:#FADCE7}
+.py-grid i:nth-of-type(2){top:var(--band)}
+.py-grid i:nth-of-type(3){top:calc(var(--band) * 2)}
+.py-grid i:nth-of-type(4){bottom:0;background:#FADCE7}
+.py-grid .py-w{
+  position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  font-family:var(--font-py);font-size:calc(var(--band) * 1.97);line-height:1;
+  transform:translateY(calc(var(--band) * -.32));color:#3A3A4C;
+}
+.py-grid .py-w.ghost{color:#F2C9D9}
+.py-card .py-name{margin-top:8px;font-size:13px;color:var(--ink-2)}
+.py-card .py-name b{color:var(--pink-d);font-family:var(--font-kai);font-size:20px;margin-right:4px}
+.py-card .py-name .py{font-size:15px;color:var(--blue)}
+.py-rows{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:16px}
+
 .upload-zone{
   border:2px dashed #EFCADB;border-radius:18px;background:#FFFBFD;padding:26px;text-align:center;
   transition:background .15s,border-color .15s;
@@ -579,6 +613,14 @@ textarea.input{min-height:84px;resize:vertical}
   position:absolute;inset:0;display:grid;place-items:center;
   font-family:var(--font-kai);font-size:42px;color:#E7C3D2;z-index:1;
 }
+.pr-py{width:70px;height:44px;border:1.2px solid #E75480;position:relative;border-radius:2px;--band:14.66px}
+.pr-py i{position:absolute;left:0;right:0;height:1px;background:#F3B7C9}
+.pr-py i:nth-of-type(1){top:var(--band)}
+.pr-py i:nth-of-type(2){top:calc(var(--band) * 2)}
+.pr-py .py{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  font-family:var(--font-py);font-size:calc(var(--band) * 1.97);color:#E7C3D2;line-height:1;
+  transform:translateY(calc(var(--band) * -.32))}
+.pr-pyt{font-family:var(--font-py)}
 .pr-foot{display:flex;justify-content:space-between;font-size:11px;color:#666;margin-top:14px;border-top:1px dashed #bbb;padding-top:8px}
 @media print{
   .pr-item{margin-bottom:7px}

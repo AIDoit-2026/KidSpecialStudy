@@ -98,9 +98,9 @@
               explain: '1、2、3、4，3 的后面是 4。'
             }),
             M({
-              skill: '5以内.认数', level: 1,
-              stem: '3 个苹果用数字几表示？', fig: { type: 'objects', icon: '🍎', groups: [3] },
-              answer: 3, unit: '个', explain: '3 个物体用数字 3 表示。'
+              skill: '5以内.认数', level: 2,
+              stem: '图上有 3 个苹果，再添几个就够 5 个了？', fig: { type: 'objects', icon: '🍎', groups: [3] },
+              answer: 2, unit: '个', explain: '3 个再添 2 个，就是 3 + 2 = 5 个。'
             }),
             M({
               skill: '5以内.比较', level: 2, type: 'compare',
@@ -167,8 +167,8 @@
             }),
             M({
               skill: '5以内.序数', level: 2,
-              stem: '第 3 个盘子里有几个苹果？', fig: { type: 'objects', icon: '🍎', groups: [1, 2, 3, 1] },
-              answer: 3, unit: '个', explain: '第 3 个盘子里有 3 个苹果。'
+              stem: '小朋友们排队，小红排第 3，她前面有几个人？',
+              answer: 2, unit: '人', explain: '排第 3，说明前面有 2 个人。'
             })
           ]
         },

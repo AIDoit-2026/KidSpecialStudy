@@ -181,6 +181,8 @@
 
       /* 题卡 */
       var card = U.h('div', { class: 'q-card' });
+      if (item.module === 'pinyin' || item.stemPy) card.classList.add('q-py');   // 题干里有拼音 → 用书写体渲染
+      if (item.module === 'pinyin') card.classList.add('q-py-opt');             // 选项本身是拼音时再放大一点
       var tag = U.h('div', { class: 'q-tag' });
       tag.appendChild(U.h('span', { class: 'pill', style: { background: '#F6F2F5', color: meta.color }, text: meta.emoji + ' ' + meta.name }));
       tag.appendChild(U.h('span', { class: 'pill gray', text: item.skill || '' }));
