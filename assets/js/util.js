@@ -20,6 +20,8 @@
       if (k === 'class' || k === 'className') node.className = v;
       else if (k === 'text') node.textContent = v;
       else if (k === 'html') node.innerHTML = v;
+      // 表单元素必须用属性赋值：textarea 的 setAttribute('value') 不会生效
+      else if (k === 'value' && 'value' in node) node.value = v;
       else if (k === 'style' && typeof v === 'object') Object.keys(v).forEach(function (s) {
         if (s.indexOf('--') === 0) node.style.setProperty(s, v[s]);
         else node.style[s] = v[s];

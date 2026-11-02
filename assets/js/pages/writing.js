@@ -43,7 +43,7 @@
         U.h('button', { class: 'btn btn-sm', text: '🖨 打印格子', onclick: function () { App.go('#/print?slot=' + slot + '&mode=writing'); } })
       )
     ));
-    head.appendChild(U.h('div', { class: 'small muted', text: '每个字在本子上写一行，写完拍一张照片就好。可以先看笔顺，跟着数一数。' }));
+    head.appendChild(U.h('div', { class: 'small muted', text: '每个字在本子上写一行，这一场的字写在同一页上，最后拍 1 张照片就够（不用一个字一张）。可以先看笔顺，跟着数一数。' }));
     wrap.appendChild(head);
 
     if (!chars.length) {
@@ -84,12 +84,49 @@
             }
           })
         ));
+        if (aiReady()) {
+          zone.appendChild(U.h('div', { class: 'row', style: { justifyContent: 'center', marginTop: '10px' } },
+            U.h('button', { class: 'btn btn-sm btn-blue', text: '🤖 让 AI 看看写得怎么样', onclick: aiScore })
+          ));
+          zone.appendChild(U.h('div', { class: 'small muted', style: { textAlign: 'center', marginTop: '4px' }, text: '用这一张照片直接打分，需要家长确认' }));
+        }
       } else {
         zone.appendChild(U.h('div', { class: 'u-emoji', text: '📷' }));
-        zone.appendChild(U.h('div', { style: { fontWeight: '800', marginTop: '6px' }, text: '写好了，拍一张照片' }));
-        zone.appendChild(U.h('p', { text: '把本子放在光线好的地方，整页拍清楚' }));
+        zone.appendChild(U.h('div', { style: { fontWeight: '800', marginTop: '6px' }, text: '写好了，拍 1 张照片' }));
+        zone.appendChild(U.h('p', { text: '这一场的字写在同一页上，整页拍清楚就行' }));
         zone.appendChild(U.h('button', { class: 'btn btn-primary', style: { marginTop: '10px' }, text: '拍照 / 选择照片', onclick: pick }));
       }
+    }
+
+    function aiReady() {
+      var ai = w.Store.settings().ai || {};
+      return !!ai.enabled && !!ai.baseURL && !!ai.model;
+    }
+
+    function aiScore() {
+      App.requirePin({ title: 'AI 点评需要家长确认' }).then(function (ok) {
+        if (!ok) return;
+        U.toast('AI 正在看照片…');
+        w.AI.scoreDirect(date, slot).then(function (r) {
+          var s = r.scores || {};
+          U.toast('AI 已评分：' + ['stroke', 'structure', 'clean', 'complete']
+            .map(function (d) { return s[d] || '-'; }).join(' / '), 'ok');
+          App.go('#/review?date=' + date + '&slot=' + slot);
+        }).catch(function (e) { U.toast('AI 评分失败：' + e.message, 'no'); });
+      });
+    }
+
+    /* 家长开了「拍照上传后自动点评」→ 拍完这一张直接在后台评分 */
+    function autoScoreIfNeeded() {
+      var ai = w.Store.settings().ai || {};
+      if (!ai.enabled || !ai.autoScore || !ai.baseURL || !ai.model) return;
+      w.AI.scoreDirect(date, slot).then(function (r) {
+        var s = r.scores || {};
+        U.toast('🤖 AI 点评完成：' + ['stroke', 'structure', 'clean', 'complete']
+          .map(function (d) { return s[d] || '-'; }).join(' / '), 'ok');
+      }).catch(function (e) {
+        console.warn('自动 AI 点评失败', e);   // 失败不打扰孩子，家长可在「批改」里重试
+      });
     }
 
     function pick() { fileInput.click(); }
@@ -117,6 +154,7 @@
             U.toast('照片收到啦 +2 ⭐', 'ok');
           }
           w.Store.photoURL(pid).then(paintZone);
+          autoScoreIfNeeded();
         });
       }).catch(function (e) {
         console.error(e);

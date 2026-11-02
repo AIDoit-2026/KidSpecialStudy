@@ -17,7 +17,7 @@
       '3) 整洁规范 clean：字迹清晰、有无涂改\n' +
       '4) 完成度 complete：是否按要求每字写满一行\n' +
       '只输出 JSON，不要任何解释：\n' +
-      '{"stroke":4,"structure":3,"clean":4,"complete":5,"note":"一句鼓励或建议，20 字以内"}';
+      '{"scores":{"stroke":4,"structure":3,"clean":4,"complete":5},"note":"一句鼓励或建议，20 字以内"}';
   }
 
   function blobToBase64(blob) {
@@ -90,24 +90,47 @@
     return step();
   }
 
-  /* 导入评分结果 */
+  /* 导入评分结果
+     兼容三种写法：
+       ① 规范：{ recordId, scores:{stroke,...}, note }
+       ② 扁平：{ recordId, stroke:4, structure:3, ... , note }
+       ③ 分数放在 score / result 字段里 */
+  function pickScores(r) {
+    r = r || {};
+    var s = r.scores || r.score || r.result || r;
+    var out = {}, count = 0;
+    DIMS.forEach(function (d) {
+      var v = normScore(s ? s[d] : undefined);
+      if (v === null && r[d] !== undefined) v = normScore(r[d]);   // 扁平兜底
+      if (v !== null) { out[d] = v; count++; }
+    });
+    return { scores: out, count: count };
+  }
+
+  function pickNote(r) {
+    r = r || {};
+    var s = r.scores || r.score || r.result;
+    return r.note || r.comment || r.remark || r.评语 || (s && (s.note || s.comment)) || '';
+  }
+
   function applyResult(list) {
     if (!Array.isArray(list)) list = [list];
     var applied = 0, missed = [];
     list.forEach(function (r) {
+      if (!r) { missed.push('空记录'); return; }
       var m = /^w_(\d{4}-\d{2}-\d{2})_(\d+)$/.exec(r.recordId || '');
-      if (!m) { missed.push(r.recordId); return; }
+      if (!m) { missed.push(r.recordId || '(缺少 recordId)'); return; }
       var date = m[1], slot = Number(m[2]);
       var rec = w.Store.writingOf(date, slot);
-      if (!rec) { missed.push(r.recordId); return; }
-      var s = r.scores || {};
-      var scores = {
-        stroke: clampScore(s.stroke), structure: clampScore(s.structure),
-        clean: clampScore(s.clean), complete: clampScore(s.complete)
-      };
+      if (!rec) { missed.push(r.recordId + '（找不到这条作业）'); return; }
+      var p = pickScores(r);
+      if (!p.count) { missed.push(r.recordId + '（分数格式不对）'); return; }
+      // 只覆盖 AI 给了的维度，其余沿用已有分数/默认 3 分，绝不写死成 1 分
+      var scores = Object.assign({ stroke: 3, structure: 3, clean: 3, complete: 3 }, rec.scores || {}, p.scores);
+      var note = pickNote(r);
       w.Store.saveWriting(Object.assign({}, rec, {
         scores: scores,
-        note: r.note || '',
+        note: note || rec.note || '',
         reviewedAt: Date.now(),
         reviewedBy: r.model ? 'ai:' + r.model : 'ai'
       }));
@@ -116,11 +139,26 @@
     return { applied: applied, missed: missed };
   }
 
-  function clampScore(v) {
+  /* 有效分返回 1~5，无效返回 null（以前统一兜底成 1，会把 AI 的真实分数全吃掉） */
+  function normScore(v) {
+    if (v === null || v === undefined || v === '') return null;
     var n = Math.round(Number(v));
-    if (!isFinite(n) || n < 1) n = 1;
+    if (!isFinite(n)) return null;
+    if (n < 1) n = 1;
     if (n > 5) n = 5;
     return n;
+  }
+  function clampScore(v) { var n = normScore(v); return n === null ? 3 : n; }
+
+  function normalize(raw) {
+    raw = raw || {};
+    var p = pickScores(raw);
+    return {
+      recordId: raw.recordId || '',
+      scores: p.scores,
+      note: pickNote(raw),
+      model: raw.model || ''
+    };
   }
 
   function importResultFile(file) {
@@ -129,7 +167,8 @@
       fr.onload = function () {
         try {
           var data = JSON.parse(fr.result);
-          var list = Array.isArray(data) ? data : (data.results || [data]);
+          var list = Array.isArray(data) ? data :
+            (data.results || data.tasks || data.items || data.data || [data]);
           resolve(applyResult(list));
         } catch (e) { reject(e); }
       };
@@ -179,9 +218,11 @@
       if (!json) throw new Error('无法解析评分结果：' + String(txt).slice(0, 120));
       json.recordId = recordId(date, slot);
       json.model = data.model || cfg.model;
-      var rep = applyResult([json]);
-      if (!rep.applied) throw new Error('评分结果未能写入');
-      return json;
+      var res = normalize(json);
+      if (!pickScores(json).count) throw new Error('AI 没给出可识别的四维分数：' + String(txt).slice(0, 120));
+      var rep = applyResult([res]);
+      if (!rep.applied) throw new Error('评分结果未能写入' + (rep.missed[0] ? '：' + rep.missed[0] : ''));
+      return res;
     });
   }
 
@@ -196,6 +237,7 @@
     DIMS: DIMS, DIM_CN: DIM_CN,
     promptFor: promptFor, pendingTasks: pendingTasks,
     exportPackage: exportPackage, applyResult: applyResult, importResultFile: importResultFile,
-    scoreDirect: scoreDirect, recordId: recordId
+    scoreDirect: scoreDirect, recordId: recordId,
+    pickScores: pickScores, pickNote: pickNote, normalize: normalize, normScore: normScore
   };
 })(window);

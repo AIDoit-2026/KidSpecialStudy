@@ -62,42 +62,60 @@
     return t === 'holiday' ? '节假日' : t === 'weekend' ? '周末' : '工作日';
   }
 
-  /* 当日最多可做几场 */
+  /* 当日「应完成」的场次：工作日 1、周六 3、周日 2、法定节假日 3
+     —— 这是目标场次，不是上限：做完这几场才算当天完成 */
   function capacity(date, settings) {
-    settings = settings || { weekCapacity: 2, holidayCapacity: 3 };
+    settings = settings || {};
     var t = dayType(date);
     if (t === 'holiday') return Math.max(1, settings.holidayCapacity || 3);
-    if (t === 'weekend') return Math.max(1, settings.weekCapacity || 2);
+    if (t === 'weekend') {
+      return U.weekday(date) === 6
+        ? Math.max(1, settings.satCapacity || 3)     // 周六
+        : Math.max(1, settings.sunCapacity || 2);    // 周日
+    }
     return 1;
   }
 
-  /* 从 startDate（含）到 date（不含）共多少个自然日 = 应完成场次基准 */
-  function expectedSessions(startDate, date) {
-    if (!startDate) return 0;
-    var n = U.diffDays(startDate, date);
-    return Math.max(0, n);
+  /* 当日还能额外补几场欠账：工作日不补，周末/节假日有上额 */
+  function catchupRoom(date, settings) {
+    if (dayType(date) === 'workday') return 0;
+    var n = settings ? settings.catchupExtra : undefined;
+    return Math.max(0, n === undefined ? 2 : Number(n) || 0);
   }
 
-  function backlog(progress, date) {
-    var exp = expectedSessions(progress.startDate, date);
+  /* 从 startDate（含）到 date（不含）应完成多少场：逐日累加当日目标 */
+  function expectedSessions(startDate, date, settings) {
+    if (!startDate) return 0;
+    var n = U.diffDays(startDate, date);
+    if (!(n > 0)) return 0;
+    if (n > 730) n = 730;                       // 防止离谱的起始日期把循环拉爆
+    var total = 0, d = startDate;
+    for (var i = 0; i < n; i++) { total += capacity(d, settings); d = U.addDays(d, 1); }
+    return total;
+  }
+
+  function backlog(progress, date, settings) {
+    settings = settings || (w.Store && w.Store.settings ? w.Store.settings() : {});
+    var exp = expectedSessions(progress.startDate, date, settings);
     return Math.max(0, exp - (progress.sessionsDone || 0));
   }
 
-  /* 今日应做场次：1 场新内容 + 补欠账（受容量限制） */
+  /* 今日计划场次 = 当日目标场次 + 最多 2 场补欠账 */
   function plannedSessions(progress, date, settings) {
     var cap = capacity(date, settings);
-    var back = backlog(progress, date);
-    return 1 + Math.min(back, cap - 1);
+    var back = backlog(progress, date, settings);
+    return cap + Math.min(back, catchupRoom(date, settings));
   }
 
-  /* 预估欠账补完日期：从今天向后模拟（最多 180 天） */
+  /* 预估欠账补完日期：从今天向后模拟（最多 365 天） */
   function catchupEta(progress, fromDate, settings) {
-    var back = backlog(progress, fromDate);
+    settings = settings || (w.Store && w.Store.settings ? w.Store.settings() : {});
+    var back = backlog(progress, fromDate, settings);
     if (back <= 0) return null;
     var d = fromDate;
     var acc = 0;
-    for (var i = 0; i < 180; i++) {
-      acc += capacity(d, settings) - 1;
+    for (var i = 0; i < 365; i++) {
+      acc += catchupRoom(d, settings);
       if (acc >= back) return { date: d, backlog: back };
       d = U.addDays(d, 1);
     }
@@ -149,7 +167,7 @@
 
   w.Schedule = {
     all: all, holidayName: holidayName, isHoliday: isHoliday, isWeekend: isWeekend,
-    dayType: dayType, typeLabel: typeLabel, capacity: capacity,
+    dayType: dayType, typeLabel: typeLabel, capacity: capacity, catchupRoom: catchupRoom,
     expectedSessions: expectedSessions, backlog: backlog, plannedSessions: plannedSessions,
     catchupEta: catchupEta, nextHolidays: nextHolidays,
     saveCustom: saveCustom, exportCustom: exportCustom

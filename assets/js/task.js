@@ -91,15 +91,16 @@
     var p = w.Store.progress();
     var st = w.Store.settings();
     var cfg = paceCfg();
-    var count = w.Schedule.plannedSessions(p, date, st);
-
+    var target = w.Schedule.capacity(date, st);            // 当天应完成场次
+    var count = w.Schedule.plannedSessions(p, date, st);   // 目标 + 最多 2 场补欠账
     var ywCur = { unit: p.yw.unit, node: p.yw.node };
     var sxCur = { unit: p.sx.unit, node: p.sx.node };
     var wCur = p.writingCursor || 0;
     var sessions = [];
 
     for (var i = 0; i < count; i++) {
-      var isCatchup = i > 0;
+      var isCatchup = i >= target;          // 超出当天目标的才算补练
+      var isExtra = i > 0 && !isCatchup;    // 当天的第 2、3 场：正常新内容，写字不减半
       var ywNode = w.Content.nodeAtCursor('chinese', ywCur);
       var sxNode = w.Content.nodeAtCursor('math', sxCur);
 
@@ -132,7 +133,7 @@
 
       sessions.push({
         slot: i,
-        type: isCatchup ? 'catchup' : 'new',
+        type: isCatchup ? 'catchup' : (isExtra ? 'extra' : 'new'),
         status: 'todo',
         yw: ywNode ? { unit: ywNode.unit, node: ywNode.node, key: ywNode.key, title: ywNode.title, lesson: ywNode.lesson, unitName: ywNode.unitName } : null,
         sx: sxNode ? { unit: sxNode.unit, node: sxNode.node, key: sxNode.key, title: sxNode.title, lesson: sxNode.lesson, unitName: sxNode.unitName } : null,
@@ -236,7 +237,7 @@
     var day = w.Store.day(date);
     var st = w.Store.settings();
     var p = w.Store.progress();
-    var backlog = w.Schedule.backlog(p, date);
+    var backlog = w.Schedule.backlog(p, date, st);
     var dayType = w.Schedule.dayType(date);
     var out = {
       date: date, dayType: dayType, dayTypeLabel: w.Schedule.typeLabel(dayType),

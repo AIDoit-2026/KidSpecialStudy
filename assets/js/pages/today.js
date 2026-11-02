@@ -34,7 +34,8 @@
     }
     return {
       chars: cnt(items.chars), pinyin: cnt(items.pinyin), math: cnt(items.math),
-      writing: { done: s.photoId ? 1 : 0, total: s.chars.length }
+      // 写字按「一张照片」计数：拍一张就覆盖整场的所有字，分子分母都用照片数
+      writing: { done: s.photoId ? 1 : 0, total: 1, chars: (s.chars || []).length }
     };
   }
 
@@ -107,6 +108,29 @@
         text: '当前节奏：' + (settings.pace === 'light' ? '轻（约 20 分钟）' : '加量（约 40 分钟）') + '，可在家长中心调整。' }));
     }
 
+    /* 计划场次和当前规则不一致时（改过场次设置 / 旧版本生成），给出对应处理 */
+    if (sum.planned < sum.capacity) {
+      var tips = U.h('div', { class: 'card', style: { marginTop: '10px', background: '#FFF9E6', border: '1px solid #FFE9A8' } });
+      tips.appendChild(U.h('div', { style: { fontWeight: '800', fontSize: '15px', color: '#8A6E00' },
+        text: '今天应完成 ' + sum.capacity + ' 场，当前计划只有 ' + sum.planned + ' 场' }));
+      if (sum.doneCount === 0) {
+        tips.appendChild(U.h('div', { class: 'small muted', style: { margin: '6px 0 10px' },
+          text: '按「工作日 1 场、周六 ' + (settings.satCapacity || 3) + ' 场、周日 ' + (settings.sunCapacity || 2) + ' 场、节假日 ' + (settings.holidayCapacity || 3) + ' 场」的规则，点下面按钮重排今天。' }));
+        tips.appendChild(U.h('button', {
+          class: 'btn btn-sm btn-primary', text: '按新规则重排今天',
+          onclick: function () {
+            w.Task.rebuild(date);
+            U.toast('已重新排好今天的 ' + w.Task.ensure(date).plan.length + ' 场', 'ok');
+            App.render();
+          }
+        }));
+      } else {
+        tips.appendChild(U.h('div', { class: 'small muted', style: { margin: '6px 0 0' },
+          text: '今天已经做了 ' + sum.doneCount + ' 场，就不重排了（重排会清掉已做的题）。明天起会按新规则排场次。' }));
+      }
+      view.appendChild(tips);
+    }
+
     /* ---- 场次条 ---- */
     if ((day.plan || []).length > 1) {
       var strip = U.h('div', { class: 'session-strip' });
@@ -117,7 +141,7 @@
         },
           U.h('span', { class: 'dot' }),
           U.h('span', { text: '第 ' + (i + 1) + ' 场' }),
-          U.h('span', { class: 'sub', text: s.type === 'catchup' ? '补练' : '新内容' })
+          U.h('span', { class: 'sub', text: s.type === 'catchup' ? '补练' : (s.type === 'extra' ? '加练' : '新内容') })
         ));
       });
       view.appendChild(strip);
@@ -134,7 +158,7 @@
       el.appendChild(U.h('div', { class: 'tc-name', text: cfg.name }));
       el.appendChild(U.h('div', { class: 'tc-sub', text: cfg.sub || '' }));
       el.appendChild(U.h('div', { class: 'tc-prog' }, U.h('i', { style: { width: pct + '%' } })));
-      el.appendChild(U.h('div', { class: 'tc-num', text: cfg.done + ' / ' + cfg.total }));
+      el.appendChild(U.h('div', { class: 'tc-num', text: cfg.num || (cfg.done + ' / ' + cfg.total) }));
       el.addEventListener('click', cfg.onClick);
       return el;
     }
@@ -160,8 +184,9 @@
       }));
       grid.appendChild(card({
         emoji: '🖌', name: '写字', color: 'var(--green)',
-        sub: cur.chars.length ? cur.chars.slice(0, 5).join(' ') : '本场无写字',
-        done: pr.writing.done, total: pr.writing.total || 1,
+        sub: cur.chars.length ? cur.chars.length + ' 个字：' + cur.chars.slice(0, 4).join(' ') : '本场无写字',
+        done: pr.writing.done, total: pr.writing.total,
+        num: !cur.chars.length ? '本场无需拍照' : (pr.writing.done ? '✓ 已上传 1 张' : '拍 1 张就够'),
         onClick: function () { App.go('#/writing?slot=' + curIdx); }
       }));
     }

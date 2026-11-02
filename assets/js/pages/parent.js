@@ -61,7 +61,7 @@
     ));
     c.appendChild(U.h('div', { class: 'kv' },
       U.h('div', { class: 'k', text: '场次' }), U.h('div', { text: sum.doneCount + ' / ' + sum.planned + ' 场完成' }),
-      U.h('div', { class: 'k', text: '日类型' }), U.h('div', { text: sum.dayTypeLabel + (sum.holiday ? '（' + sum.holiday + '）' : '') + '，最多 ' + sum.capacity + ' 场' }),
+      U.h('div', { class: 'k', text: '日类型' }), U.h('div', { text: sum.dayTypeLabel + (sum.holiday ? '（' + sum.holiday + '）' : '') + '，应完成 ' + sum.capacity + ' 场' }),
       U.h('div', { class: 'k', text: '欠账' }), U.h('div', { text: sum.backlog ? sum.backlog + ' 场（' + (sum.eta && sum.eta.date ? '预计 ' + U.fmtCn(sum.eta.date) + ' 补完' : '假期补练') + '）' : '没有欠账' }),
       U.h('div', { class: 'k', text: '待批改' }), U.h('div', { text: pending.length ? pending.length + ' 条作业' : '没有' })
     ));
@@ -237,6 +237,21 @@
   }
 
   /* ---------------- 批改 ---------------- */
+  function avgScore(rec) {
+    var s = (rec && rec.scores) || {};
+    var vals = ['stroke', 'structure', 'clean', 'complete']
+      .map(function (d) { return w.AI.normScore(s[d]); })
+      .filter(function (v) { return v !== null; });
+    if (!vals.length) return '—';
+    return (vals.reduce(function (a, b) { return a + b; }, 0) / vals.length).toFixed(1);
+  }
+  function reviewerText(by) {
+    by = by || '';
+    if (by === 'parent') return '家长评分';
+    if (by.indexOf('ai') === 0) return 'AI' + (by.length > 3 ? '（' + by.slice(3) + '）' : '');
+    return by || '';
+  }
+
   function renderReview(view) {
     var pending = w.Store.pendingReviews();
     var done = w.Store.writingList().filter(function (x) { return x.reviewedAt; })
@@ -265,12 +280,12 @@
       c2.appendChild(U.h('div', { class: 'card-title' }, U.h('h2', { text: '最近批改' })));
       var l2 = U.h('div', { class: 'review-list' });
       done.forEach(function (rec) {
-        var avg = rec.scores ? ((rec.scores.stroke + rec.scores.structure + rec.scores.clean + rec.scores.complete) / 4).toFixed(1) : '—';
+        var avg = avgScore(rec);
         l2.appendChild(U.h('div', { class: 'review-row' },
           U.h('div', { class: 'rr-thumb' }, '🖼'),
           U.h('div', { class: 'rr-main' },
             U.h('div', { class: 'rr-title', text: U.fmtCn(rec.date) + '　' + (rec.chars || []).join(' ') }),
-            U.h('div', { class: 'rr-sub', text: '均分 ' + avg + (rec.reviewedBy ? '　·　' + (rec.reviewedBy === 'parent' ? '家长评分' : rec.reviewedBy) : '') })
+            U.h('div', { class: 'rr-sub', text: '均分 ' + avg + (rec.reviewedBy ? '　·　' + reviewerText(rec.reviewedBy) + (rec.note ? '　·　' + rec.note : '') : '') })
           ),
           U.h('button', {
             class: 'btn btn-sm', text: '查看',
@@ -448,19 +463,32 @@
       U.h('div', { class: 'k', text: '开始日期' }), U.h('div', { text: p.startDate }),
       U.h('div', { class: 'k', text: '已完成' }), U.h('div', { text: (p.sessionsDone || 0) + ' 场' })
     ));
-    var wk = U.h('select', { class: 'input', style: { maxWidth: '140px' } });
-    [1, 2, 3].forEach(function (n) { wk.appendChild(U.h('option', { value: n, text: n + ' 场', selected: (st.weekCapacity || 2) === n })); });
-    wk.addEventListener('change', function () { w.Store.saveSettings({ weekCapacity: Number(wk.value) }); U.toast('已保存'); });
-    var hd = U.h('select', { class: 'input', style: { maxWidth: '140px' } });
+    var sat = U.h('select', { class: 'input', style: { maxWidth: '120px' } });
+    [1, 2, 3].forEach(function (n) { sat.appendChild(U.h('option', { value: n, text: n + ' 场', selected: (st.satCapacity || 3) === n })); });
+    sat.addEventListener('change', function () {
+      w.Store.saveSettings({ satCapacity: Number(sat.value) });
+      U.toast('已保存：周六 ' + sat.value + ' 场', 'ok');
+    });
+    var sun = U.h('select', { class: 'input', style: { maxWidth: '120px' } });
+    [1, 2, 3].forEach(function (n) { sun.appendChild(U.h('option', { value: n, text: n + ' 场', selected: (st.sunCapacity || 2) === n })); });
+    sun.addEventListener('change', function () {
+      w.Store.saveSettings({ sunCapacity: Number(sun.value) });
+      U.toast('已保存：周日 ' + sun.value + ' 场', 'ok');
+    });
+    var hd = U.h('select', { class: 'input', style: { maxWidth: '120px' } });
     [1, 2, 3].forEach(function (n) { hd.appendChild(U.h('option', { value: n, text: n + ' 场', selected: (st.holidayCapacity || 3) === n })); });
     hd.addEventListener('change', function () { w.Store.saveSettings({ holidayCapacity: Number(hd.value) }); U.toast('已保存'); });
 
     sch.appendChild(U.h('div', { class: 'row wrap', style: { marginTop: '14px', gap: '18px' } },
-      U.h('div', { class: 'field', style: { margin: 0 } }, U.h('label', { text: '周末最多几场' }), wk),
-      U.h('div', { class: 'field', style: { margin: 0 } }, U.h('label', { text: '法定节假日至多几场' }), hd)
+      U.h('div', { class: 'field', style: { margin: 0 } }, U.h('label', { text: '周六几场' }), sat),
+      U.h('div', { class: 'field', style: { margin: 0 } }, U.h('label', { text: '周日几场' }), sun),
+      U.h('div', { class: 'field', style: { margin: 0 } }, U.h('label', { text: '法定节假日几场' }), hd)
     ));
     sch.appendChild(U.h('div', { class: 'small muted', style: { marginTop: '10px' },
-      text: '规则：每个自然日至少 1 场新内容；没做完的算欠账，只安排在周末和法定节假日补，节假日每天最多做 ' + (st.holidayCapacity || 3) + ' 场。' }));
+      text: '规则：工作日 1 场、周六 ' + (st.satCapacity || 3) + ' 场、周日 ' + (st.sunCapacity || 2) + ' 场、法定节假日 ' + (st.holidayCapacity || 3) + ' 场，' +
+        '当天全部做完才算完成。没做完的算欠账，只在周末和节假日最多额外补 ' + (st.catchupExtra === undefined ? 2 : st.catchupExtra) + ' 场。' }));
+    sch.appendChild(U.h('div', { class: 'small muted', style: { marginTop: '6px' },
+      text: '改完只影响之后新生成的任务；今天已经排好的，点下面「重排今日任务」才会按新场次重排。' }));
 
     sch.appendChild(U.h('div', { class: 'row', style: { marginTop: '12px' } },
       U.h('button', {
@@ -695,6 +723,13 @@
         App.render();
       })
     ));
+    c.appendChild(U.h('div', { class: 'row', style: { marginTop: '8px' } },
+      toggle('拍照上传后自动点评', !!ai.autoScore, function (v) {
+        w.Store.saveSettings({ ai: Object.assign({}, ai, { autoScore: v }) });
+        if (v && (!ai.baseURL || !ai.model)) U.toast('先把下面的接口地址和模型填好，自动点评才会生效', 'no');
+      })
+    ));
+    c.appendChild(U.h('div', { class: 'small muted', style: { marginTop: '4px' }, text: '开启后孩子拍完 1 张照片就自动评分，家长不用再手动点；失败不打扰孩子，可在「批改」里重试。' }));
 
     var base = U.h('input', { class: 'input', placeholder: 'https://api.openai.com/v1', value: ai.baseURL || '' });
     var key = U.h('input', { class: 'input', type: 'password', placeholder: 'sk-...', value: ai.apiKey || '' });
@@ -755,7 +790,9 @@
         onclick: function () {
           U.toast('AI 正在看照片…');
           w.AI.scoreDirect(first.date, first.slot || 0).then(function (r) {
-            U.toast('AI 评分完成：' + r.scores.stroke + '/' + r.scores.structure + '/' + r.scores.clean + '/' + r.scores.complete, 'ok');
+            var s = r.scores || {};
+            U.toast('AI 评分完成：' + ['stroke', 'structure', 'clean', 'complete']
+              .map(function (d) { return s[d] || '-'; }).join('/') + '　已写入，可在「批改」里查看', 'ok');
             App.render();
           }).catch(function (e) { U.toast('评分失败：' + e.message, 'no'); });
         }

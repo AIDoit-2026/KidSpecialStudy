@@ -4,7 +4,7 @@
   'use strict';
 
   var PREFIX = 'wb2_';
-  var VERSION = 3;
+  var VERSION = 4;
   var mem = {};           // 读缓存
   var listeners = [];
   var LS_OK = true;
@@ -106,8 +106,11 @@
       review: true,
       charsPerDay: 4,
       catchupWriting: true,     // 补练场次是否含写字
-      weekCapacity: 2,          // 周末场次上限（1 新 + 1 补）
-      holidayCapacity: 3,       // 法定节假日场次上限
+      // 每天「应完成」的场次：工作日 1 / 周六 3 / 周日 2 / 法定节假日 3
+      satCapacity: 3,           // 周六固定场次
+      sunCapacity: 2,           // 周日固定场次
+      holidayCapacity: 3,       // 法定节假日固定场次
+      catchupExtra: 2,          // 周末/节假日最多额外补几场欠账
       pinHash: null,
       ai: { enabled: false, baseURL: '', apiKey: '', model: '', autoScore: false },
       theme: 'light',
@@ -750,6 +753,27 @@
         rawSet(kid.id + '_progress', p);
       }
       if (!kid.bookId) updateKid(kid.id, { bookId: 'yw-1a' });
+    });
+    // v3 → v4：旧版 AI 评分解析格式不一致，会把四维分数全兜底成 1 分。
+    // 这类坏数据退回「未批改」，重新打分即可，照片和记录都保留。
+    kidList().forEach(function (kid) {
+      var list = rawGet(kid.id + '_writing', null);
+      if (!list || !list.length) return;
+      var fixed = 0;
+      var next = list.map(function (r) {
+        var s = r && r.scores;
+        if (!s || String(r.reviewedBy || '').indexOf('ai') !== 0) return r;
+        if (s.stroke === 1 && s.structure === 1 && s.clean === 1 && s.complete === 1) {
+          fixed++;
+          return Object.assign({}, r, { scores: null, note: '', reviewedAt: null, reviewedBy: null });
+        }
+        return r;
+      });
+      if (fixed) {
+        rawSet(kid.id + '_writing', next);
+        invalidate(kid.id + '_writing');
+        console.log('[store] 清理 AI 误评数据 ' + fixed + ' 条（' + kid.name + '），已退回待批改');
+      }
     });
     rawSet('schema_version', VERSION);
   }

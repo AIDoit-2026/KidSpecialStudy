@@ -119,7 +119,7 @@
           avg = ((wr.scores.stroke + wr.scores.structure + wr.scores.clean + wr.scores.complete) / 4).toFixed(2);
         }
         rows.push([
-          d, i + 1, s.type === 'catchup' ? '补练' : '新内容',
+          d, i + 1, s.type === 'catchup' ? '补练' : (s.type === 'extra' ? '加练' : '新内容'),
           total, s.correct || 0,
           total ? Math.round((s.correct || 0) / total * 100) + '%' : '',
           s.ms ? (s.ms / 60000).toFixed(1) : '',

@@ -145,25 +145,37 @@
 
     section('排程 / 欠账');
     ok('工作日容量 1', Schedule.capacity('2026-11-03', Store.settings()) === 1, '2026-11-03 是周二');
-    ok('周末容量 2', Schedule.capacity('2026-11-07', Store.settings()) === 2);
+    ok('周六容量 3', Schedule.capacity('2026-11-07', Store.settings()) === 3, '2026-11-07 是周六');
+    ok('周日容量 2', Schedule.capacity('2026-11-08', Store.settings()) === 2, '2026-11-08 是周日');
     ok('节假日容量 3', Schedule.capacity('2027-01-01', Store.settings()) === 3);
-    Store.saveProgress({ startDate: U.addDays(U.today(), -5), sessionsDone: 1 });
-    ok('欠账 = 4', Schedule.backlog(Store.progress(), U.today()) === 4, Schedule.backlog(Store.progress(), U.today()));
+    /* 欠账按每日目标累加：10-26(一)~10-30(五) = 5 场，已完成 1 → 欠 4 */
+    Store.saveProgress({ startDate: '2026-10-26', sessionsDone: 1 });
+    ok('欠账 = 4', Schedule.backlog(Store.progress(), '2026-10-31', Store.settings()) === 4, Schedule.backlog(Store.progress(), '2026-10-31', Store.settings()));
     var eta = Schedule.catchupEta(Store.progress(), U.today(), Store.settings());
     ok('能算出补完日期', !!(eta && eta.date), JSON.stringify(eta));
 
-    /* 节假日 3 场排程 */
+    /* 无欠账时按固定场次排：节假日 3 / 周六 3 / 周日 2 */
+    Store.saveProgress({ startDate: U.addDays(U.today(), -60), sessionsDone: 9999 });
     var hp = Task.buildPlan('2027-01-01');
     ok('节假日排 3 场', hp.length === 3, hp.length);
     ok('首场是新内容', hp[0].type === 'new');
-    ok('后两场是补练', hp[1].type === 'catchup' && hp[2].type === 'catchup');
-    ok('补练写字减半', hp[1].chars.length <= 2, hp[1].chars.length);
+    ok('当天第 2、3 场是加练（写字不减半）', hp[1].type === 'extra' && hp[2].type === 'extra');
+    ok('加练写字不缩水', hp[1].chars.length === hp[0].chars.length, hp[1].chars.length + ' vs ' + hp[0].chars.length);
     ok('补练不重复试题', hp[0].items.math[0] !== hp[1].items.math[0],
       hp[0].items.math[0] + ' vs ' + hp[1].items.math[0]);
     ok('三场题量都够', hp.every(function (s) { return s.total === 16; }), hp.map(function (s) { return s.total; }).join(','));
-    /* 周末 2 场 */
     var wp = Task.buildPlan('2026-11-07');
-    ok('周末排 2 场', wp.length === 2, wp.length);
+    ok('周六排 3 场', wp.length === 3, wp.length);
+    var sp = Task.buildPlan('2026-11-08');
+    ok('周日排 2 场', sp.length === 2, sp.length);
+    /* 有欠账：在固定场次上最多再加 2 场 */
+    var expSat = Schedule.expectedSessions(Store.progress().startDate, '2026-11-07', Store.settings());
+    Store.saveProgress({ sessionsDone: expSat - 1 });
+    var wp2 = Task.buildPlan('2026-11-07');
+    ok('周六欠 1 场 → 排 4 场', wp2.length === 4, wp2.length);
+    Store.saveProgress({ sessionsDone: expSat - 9 });
+    var wp3 = Task.buildPlan('2026-11-07');
+    ok('欠账再多也只补 2 场', wp3.length === 5, wp3.length);
 
     section('写字与批改');
     Store.saveWriting({ date: U.today(), slot: 0, chars: ['我', '们'], photoId: 'p_test', scores: null, reviewedAt: null });

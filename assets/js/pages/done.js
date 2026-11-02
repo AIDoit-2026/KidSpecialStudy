@@ -48,7 +48,8 @@
     if (sum.planned > 1) {
       var box = U.h('div', { class: 'card', style: { textAlign: 'left' } });
       box.appendChild(U.h('div', { class: 'card-title' }, U.h('h2', { text: '今天还有 ' + (sum.planned - sum.doneCount) + ' 场' })));
-      box.appendChild(U.h('div', { class: 'small muted', text: '今天是' + sum.dayTypeLabel + (sum.holiday ? '（' + sum.holiday + '）' : '') + '，最多安排 ' + sum.capacity + ' 场，其中补练 ' + (sum.planned - 1) + ' 场。' }));
+      box.appendChild(U.h('div', { class: 'small muted', text: '今天是' + sum.dayTypeLabel + (sum.holiday ? '（' + sum.holiday + '）' : '') + '，应完成 ' + sum.capacity + ' 场' +
+        (sum.planned > sum.capacity ? '，另有 ' + (sum.planned - sum.capacity) + ' 场补练（今天共 ' + sum.planned + ' 场）' : '') + '。' }));
       wrap.appendChild(box);
     } else if (sum.backlog > 0) {
       var eta = sum.eta;

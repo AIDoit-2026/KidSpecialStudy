@@ -13,6 +13,20 @@
     '竖钩再挺一点，更有力'
   ];
 
+  /* 把任意输入收敛成 1~5，无效返回 null（不写默认值） */
+  function norm(v) {
+    if (v === null || v === undefined || v === '') return null;
+    var n = Math.round(Number(v));
+    if (!isFinite(n)) return null;
+    return Math.max(1, Math.min(5, n));
+  }
+  function reviewerText(by) {
+    by = by || '';
+    if (by === 'parent') return '家长';
+    if (by.indexOf('ai') === 0) return 'AI' + (by.length > 3 ? '（' + by.slice(3) + '）' : '');
+    return by || '系统';
+  }
+
   function render(view, query) {
     var date = query.date || U.today();
     var slot = Number(query.slot || 0);
@@ -24,7 +38,11 @@
       return;
     }
 
-    var scores = Object.assign({ stroke: 3, structure: 3, clean: 3, complete: 3 }, rec.scores || {});
+    var scores = { stroke: 3, structure: 3, clean: 3, complete: 3 };
+    DIMS.forEach(function (d) {
+      var v = norm(rec.scores ? rec.scores[d] : undefined);
+      if (v !== null) scores[d] = v;
+    });
     var note = rec.note || '';
 
     var wrap = U.h('div', { class: 'grid', style: { gridTemplateColumns: 'minmax(0,1.1fr) minmax(0,1fr)', gap: '16px', alignItems: 'start' } });
@@ -58,8 +76,7 @@
     }
     if (rec.reviewedAt) {
       left.appendChild(U.h('div', { class: 'small muted', style: { marginTop: '10px' },
-        text: '上次评分：' +
-          (rec.reviewedBy === 'parent' ? '家长' : (rec.reviewedBy || '系统')) + '　' +
+        text: '上次评分：' + reviewerText(rec.reviewedBy) + '　' +
           new Date(rec.reviewedAt).toLocaleString('zh-CN') }));
     }
     left.appendChild(U.h('div', { class: 'row', style: { marginTop: '12px' } },
@@ -74,7 +91,12 @@
         onclick: function () {
           U.toast('AI 正在看照片…');
           w.AI.scoreDirect(date, slot).then(function (r) {
-            U.toast('AI 打分完成', 'ok');
+            // 先把结果同步到当前界面，再整页重绘，保证两个来源都刷新
+            var s = r.scores || {};
+            DIMS.forEach(function (d) { var v = norm(s[d]); if (v !== null) scores[d] = v; });
+            if (r.note) { note = r.note; ta.value = r.note; }
+            paint();
+            U.toast('AI 打分完成：' + DIMS.map(function (d) { return scores[d]; }).join('/'), 'ok');
             App.render();
           }).catch(function (e) { U.toast('AI 评分失败：' + e.message, 'no'); });
         }
@@ -84,7 +106,11 @@
 
     /* 右：评分 */
     var right = U.h('div', { class: 'card' });
-    right.appendChild(U.h('div', { class: 'card-title' }, U.h('h2', { text: '四个维度打分' })));
+    var titleRow = U.h('div', { class: 'card-title' }, U.h('h2', { text: '四个维度打分' }));
+    if ((rec.reviewedBy || '').indexOf('ai') === 0) {
+      titleRow.appendChild(U.h('span', { class: 'pill purple', text: '🤖 ' + reviewerText(rec.reviewedBy) + ' 已评分' }));
+    }
+    right.appendChild(titleRow);
 
     var total = U.h('div', { class: 'pill yellow', text: '均分 3.0' });
     right.appendChild(U.h('div', { class: 'row', style: { marginBottom: '8px' } },
@@ -130,7 +156,8 @@
       }));
     });
     right.appendChild(U.h('div', { class: 'small muted', style: { marginTop: '10px' }, text: '一句评语（可点选，也可自己写）' }));
-    var ta = U.h('textarea', { class: 'input', placeholder: '例如：今天的「水」竖钩再挺一点', value: note });
+    var ta = U.h('textarea', { class: 'input', placeholder: '例如：今天的「水」竖钩再挺一点' });
+    ta.value = note;                       // textarea 只能属性赋值，setAttribute 不生效
     ta.addEventListener('input', function () { note = ta.value; });
     right.appendChild(chips);
     right.appendChild(U.h('div', { style: { marginTop: '8px' } }, ta));
@@ -159,6 +186,8 @@
     }));
     right.appendChild(actions);
     wrap.appendChild(right);
+
+    paint();                                // 首次渲染就按存档分数点亮星星和均分
   }
 
   App.page('review', { title: '批改作业', render: render });
