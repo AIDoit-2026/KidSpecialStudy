@@ -12,7 +12,9 @@
   var CHAR_TYPES = ['py', 'stroke', 'word', 'radical', 'struct', 'first', 'syl'];
   var STROKE_POOL = ['横', '竖', '撇', '点', '提', '捺', '横折', '横钩', '竖钩', '竖提', '竖弯钩',
     '撇折', '斜钩', '卧钩', '横折钩', '横撇', '横折弯钩', '竖折'];
-  var STRUCT_OPTS = ['左右结构', '上下结构', '独体字'];
+  /* 结构题的候选池：字库里出现过的五种结构都要有，否则「国」这类字会掉进兜底选项变成错题。
+     每道题仍只出 3 个选项，从池子里抽 2 个干扰项。 */
+  var STRUCT_OPTS = ['左右结构', '上下结构', '独体字', '半包围结构', '全包围结构'];
 
   /* 全书去重表（每次 build 重置） */
   var USED_STEM = null;        // 题干 → 1
@@ -382,7 +384,12 @@
 
     /* struct */
     if (!ch.struct) return buildCharItem(ch, 'py', idx, node, unit, qIndex);
-    var correctStruct = STRUCT_OPTS.filter(function (s) { return s.indexOf(ch.struct) >= 0; })[0] || '独体字';
+    var correctStruct = null;
+    for (var si = 0; si < STRUCT_OPTS.length; si++) {
+      if (STRUCT_OPTS[si].indexOf(ch.struct) >= 0) { correctStruct = STRUCT_OPTS[si]; break; }
+    }
+    // 字库里出现了候选池没有的结构（比如「左中右」），宁可换题型也不要出成错题
+    if (!correctStruct) return buildCharItem(ch, 'py', idx, node, unit, qIndex);
     var ds4 = STRUCT_OPTS.filter(function (s) { return s !== correctStruct; });
     var r5 = shuffleOptions(correctStruct, ds4.slice(0, 2));
     return Object.assign(base, {

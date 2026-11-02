@@ -3,23 +3,19 @@
   'use strict';
 
   var DIMS = ['stroke', 'structure', 'clean', 'complete'];
-  var DIM_CN = { stroke: '笔画正确', structure: '间架结构', clean: '整洁规范', complete: '完成度' };
-  var DIM_CN_PY = { stroke: '字母形体', structure: '占格位置', clean: '声调与整洁', complete: '完成度' };
-  var PRESET_NOTES_PY = [
-    '拼音写得很工整，声调也标对了 👏',
-    '字母要写在四线三格的中格里',
-    '声调符号别忘啦，标在元音上',
-    'a 和 g 写成一层的小尾巴就对啦',
-    'b 和 d 别写反，看清小肚子',
-    '一行写完，卷面干干净净'
-  ];
+  /* 四个维度的中文名跟着「写的是汉字还是拼音」变，词汇表在 ai.js 里统一维护 */
+  /* 写汉字还是写拼音没有提前定，家长手评时也不知道 → 用中性说法。
+     词汇表由 assets/js/ai.js 提供，这里只做引用，避免两处各写一份。 */
   var PRESET_NOTES = [
     '今天写得很认真，继续保持！',
-    '间架结构再紧凑一点 📏',
     '注意笔顺，慢一点写',
     '横平竖直，进步明显 👏',
-    '字要写在田字格中间',
-    '竖钩再挺一点，更有力'
+    '字要写在田字格中间，大小匀称',
+    '拼音要写在四线三格的中格里',
+    'a 和 g 写成一层的小尾巴就对啦',
+    'b 和 d 别写反，看清小肚子',
+    '声调符号别忘啦，标在元音上',
+    '一行写完，卷面干干净净'
   ];
 
   /* 把任意输入收敛成 1~5，无效返回 null（不写默认值） */
@@ -53,8 +49,9 @@
       if (v !== null) scores[d] = v;
     });
     var note = rec.note || '';
-    var isPy = rec.mode === 'pinyin';
-    var DIM_LABEL = isPy ? DIM_CN_PY : DIM_CN;
+    /* AI 看过照片会写回 mode；家长手评时还不知道写的是哪种，就用中性维度名 */
+    var recMode = w.AI.modeOf(rec);
+    var DIM_LABEL = w.AI.dimCN(recMode);
 
     var wrap = U.h('div', { class: 'grid', style: { gridTemplateColumns: 'minmax(0,1.1fr) minmax(0,1fr)', gap: '16px', alignItems: 'start' } });
     view.appendChild(wrap);
@@ -62,8 +59,10 @@
     /* 左：照片 */
     var left = U.h('div', { class: 'card' });
     left.appendChild(U.h('div', { class: 'card-title' },
-      U.h('h2', { text: U.fmtCn(date) + ' 第 ' + (slot + 1) + ' 场' }),
-      U.h('span', { class: 'pill purple', text: (isPy ? '拼音 ' : '') + (rec.chars || []).join(' ') })
+      U.h('h2', { text: U.fmtCn(date) + ' 第 ' + (slot + 1) + ' 场' })
+    ));
+    left.appendChild(U.h('div', { class: 'row', style: { gap: '8px', alignItems: 'center', flexWrap: 'wrap', marginBottom: '10px' } },
+      U.h('span', { class: 'pill purple', text: (recMode === 'pinyin' ? '拼音 ' : '') + (rec.chars || []).join(' ') })
     ));
     var photoBox = U.h('div', { style: { borderRadius: '14px', overflow: 'hidden', background: '#F7F2F5', minHeight: '220px', display: 'grid', placeItems: 'center' } });
     photoBox.appendChild(U.h('div', { class: 'muted small', text: '照片加载中…' }));
@@ -107,7 +106,7 @@
             DIMS.forEach(function (d) { var v = norm(s[d]); if (v !== null) scores[d] = v; });
             if (r.note) { note = r.note; ta.value = r.note; }
             paint();
-            U.toast('AI 打分完成：' + DIMS.map(function (d) { return scores[d]; }).join('/'), 'ok');
+            U.toast('AI 打分完成（' + w.AI.scriptCN(r.script) + '）：' + DIMS.map(function (d) { return scores[d]; }).join('/'), 'ok');
             App.render();
           }).catch(function (e) { U.toast('AI 评分失败：' + e.message, 'no'); });
         }
@@ -157,7 +156,7 @@
     }
 
     var chips = U.h('div', { class: 'chips', style: { marginTop: '14px' } });
-    (isPy ? PRESET_NOTES_PY : PRESET_NOTES).forEach(function (t) {
+    PRESET_NOTES.forEach(function (t) {
       chips.appendChild(U.h('button', {
         text: t,
         onclick: function () {

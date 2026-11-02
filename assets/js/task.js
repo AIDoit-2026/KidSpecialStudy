@@ -86,9 +86,10 @@
     return cursorVal(b) > cursorVal(a) ? { unit: b.unit, node: b.node } : { unit: a.unit, node: a.node };
   }
 
-  /* 生成一天的场次计划（不落盘） */
-  function buildPlan(date) {
-    var p = w.Store.progress();
+  /* 生成一天的场次计划（不落盘）
+     prog 可传入模拟用的进度副本：预览未来日期时会逐天推演，不能动到真实进度 */
+  function buildPlan(date, prog) {
+    var p = prog || w.Store.progress();
     var st = w.Store.settings();
     var cfg = paceCfg();
     var target = w.Schedule.capacity(date, st);            // 当天应完成场次
@@ -167,6 +168,82 @@
     date = date || U.today();
     var plan = buildPlan(date);
     return w.Store.saveDay(date, { plan: plan, done: false, startedAt: null });
+  }
+
+  /* 预览缓存：同一天在同一次查看里反复进出（列表 ↔ 详情 ↔ 翻场次）要看到同一份题，
+     否则每次 buildPlan 都会重新随机，家长会以为题目在跳。孩子做了一场后进度变了，key 自然失效。 */
+  var PREVIEW_CACHE = {};
+
+  function previewKey(date) {
+    var p = w.Store.progress();
+    var st = w.Store.settings();
+    var kidId = (w.Store.kids && w.Store.kids.activeId) ? w.Store.kids.activeId() : '';
+    return [kidId, date, p.bookId, p.startDate,
+      p.yw.unit, p.yw.node, p.sx.unit, p.sx.node,
+      p.writingCursor || 0, p.sessionsDone || 0,
+      st.pace, st.charsPerDay, st.review ? 1 : 0, st.catchupWriting ? 1 : 0,
+      st.satCapacity, st.sunCapacity, st.holidayCapacity, st.catchupExtra].join('|');
+  }
+
+  /* 预览某天会出什么题（只读，不写盘）
+     · 那天已有计划（做过或打开过）→ 直接返回真实的
+     · 今天或更早、但没有计划 → 用当前进度算一份
+     · 未来 → 从今天起逐天模拟「每天都按时完成」，推到那天
+     这样可以保证家长看到的是「按现在的进度，那天真的会排到的题」，而不是每次都一样的题。 */
+  function preview(date) {
+    date = date || U.today();
+    var today = U.today();
+    var day = w.Store.day(date);
+    if (day && day.plan && day.plan.length) {
+      return { date: date, plan: day.plan, real: true, source: 'record' };
+    }
+
+    var key = previewKey(date);
+    if (PREVIEW_CACHE[key]) return PREVIEW_CACHE[key];
+
+    if (date <= today) {
+      if (Object.keys(PREVIEW_CACHE).length > 80) PREVIEW_CACHE = {};
+      return (PREVIEW_CACHE[key] = { date: date, plan: buildPlan(date), real: false, source: 'estimate' });
+    }
+
+    var base = w.Store.progress();
+    var sim = {
+      yw: { unit: base.yw.unit, node: base.yw.node },
+      sx: { unit: base.sx.unit, node: base.sx.node },
+      writingCursor: base.writingCursor || 0,
+      sessionsDone: base.sessionsDone || 0,
+      startDate: base.startDate
+    };
+
+    // 起点：今天的场次也算做完（家长查的是「往后每天按时练」的排法）
+    var day0 = w.Store.day(today);
+    var plan0 = (day0 && day0.plan && day0.plan.length) ? day0.plan : buildPlan(today, sim);
+    sim.sessionsDone += plan0.filter(function (s) { return s.status !== 'done'; }).length;
+    var last0 = plan0[plan0.length - 1];
+    if (last0 && last0.next) {
+      if (last0.next.yw) sim.yw = last0.next.yw;
+      if (last0.next.sx) sim.sx = last0.next.sx;
+      if (last0.next.w) sim.writingCursor = last0.next.w;
+    }
+
+    var d = U.addDays(today, 1), guard = 0, truncated = false;
+    while (d < date) {
+      if (guard++ > 800) { truncated = true; break; }
+      var pl = buildPlan(d, sim);
+      var last = pl[pl.length - 1];
+      if (last && last.next) {
+        if (last.next.yw) sim.yw = last.next.yw;
+        if (last.next.sx) sim.sx = last.next.sx;
+        if (last.next.w) sim.writingCursor = last.next.w;
+      }
+      sim.sessionsDone += pl.length;
+      d = U.addDays(d, 1);
+    }
+    var out = { date: date, plan: buildPlan(date, sim), real: false, source: 'sim', truncated: truncated };
+    // 别让缓存无限长，留着最近几十天的就够
+    if (Object.keys(PREVIEW_CACHE).length > 80) PREVIEW_CACHE = {};
+    PREVIEW_CACHE[key] = out;
+    return out;
   }
 
   function sessionItems(s) {
@@ -257,7 +334,7 @@
 
   w.Task = {
     PACE: PACE, paceCfg: paceCfg,
-    buildPlan: buildPlan, ensure: ensure, rebuild: rebuild,
+    buildPlan: buildPlan, ensure: ensure, rebuild: rebuild, preview: preview,
     sessionItems: sessionItems, canCheckin: canCheckin, completeSlot: completeSlot,
     summary: summary, writingCharsOf: writingCharsOf,
     maxCursor: maxCursor, consolidate: consolidate

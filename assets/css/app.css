@@ -372,12 +372,13 @@ textarea.input{min-height:84px;resize:vertical}
 .tian.mid{width:120px;height:120px}
 .tian.mid .glyph{font-size:92px}
 .char-meta{font-size:13px;color:var(--ink-2)}
+/* 写字卡里田字格下方并列一条四线三格：写汉字看上面，写拼音看下面 */
+.char-card .py-grid{width:170px;margin:0 auto 10px;--band:26px}
 .char-meta b{color:var(--pink-d)}
 .char-words{font-size:12px;color:var(--muted);margin-top:2px}
 .stroke-list{display:flex;flex-wrap:wrap;gap:4px;justify-content:center;margin-top:6px}
 .stroke-list span{font-size:11px;background:#F6F1F4;border-radius:6px;padding:2px 6px;color:var(--ink-2)}
 
-.py-card{background:#fff;border-radius:18px;box-shadow:var(--shadow);padding:14px;text-align:center}
 .py-grid{
   position:relative;--band:30px;height:calc(var(--band) * 3);
   border:2px solid #F0B8CC;border-radius:6px;background:#fff;overflow:hidden;
@@ -393,10 +394,6 @@ textarea.input{min-height:84px;resize:vertical}
   transform:translateY(calc(var(--band) * -.32));color:#3A3A4C;
 }
 .py-grid .py-w.ghost{color:#F2C9D9}
-.py-card .py-name{margin-top:8px;font-size:13px;color:var(--ink-2)}
-.py-card .py-name b{color:var(--pink-d);font-family:var(--font-kai);font-size:20px;margin-right:4px}
-.py-card .py-name .py{font-size:15px;color:var(--blue)}
-.py-rows{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:16px}
 
 .upload-zone{
   border:2px dashed #EFCADB;border-radius:18px;background:#FFFBFD;padding:26px;text-align:center;
@@ -483,13 +480,39 @@ textarea.input{min-height:84px;resize:vertical}
 .badge-dot{background:var(--pink);color:#fff;border-radius:999px;font-size:11px;padding:1px 7px;font-weight:800}
 
 .score-row{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px dashed #F2E7ED}
-.score-row .sr-name{width:96px;font-size:14px;font-weight:700}
+.score-row .sr-name{flex:0 0 96px;width:96px;font-size:14px;font-weight:700;white-space:nowrap}
 .stars-pick{display:flex;gap:4px}
-.stars-pick button{font-size:26px;filter:grayscale(1);opacity:.4;transition:transform .12s,filter .12s}
+.stars-pick button{padding:0;line-height:1;font-size:26px;filter:grayscale(1);opacity:.4;transition:transform .12s,filter .12s}
 .stars-pick button.on{filter:none;opacity:1;transform:scale(1.06)}
 .chips{display:flex;flex-wrap:wrap;gap:8px}
 .chips button{padding:7px 13px;border-radius:999px;background:#F7F2F6;font-size:13px;color:var(--ink-2);font-weight:600}
 .chips button:hover{background:#F1E8EE}
+
+/* ---------- 看题 / 题目预览 ---------- */
+.peek-bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.peek-bar .input{width:168px;padding:7px 10px;font-size:14px}
+.peek-meta{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:10px;font-size:13px;color:var(--ink-2)}
+.peek-meta b{font-size:15px;color:var(--ink)}
+.peek-line{display:flex;gap:10px;align-items:baseline;padding:7px 0;border-bottom:1px dashed var(--line);font-size:14px}
+.peek-line:last-child{border-bottom:0}
+.peek-line b{flex:0 0 40px;color:var(--muted);font-weight:700;font-size:13px}
+.peek-line .pl-text{flex:1;min-width:0;color:var(--ink)}
+.peek-line .pl-right{flex:none;font-size:12px;color:var(--muted)}
+
+.peek-q{background:#fff;border-radius:16px;box-shadow:var(--shadow);padding:14px 18px;margin-bottom:12px}
+.peek-q .q-head{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:8px}
+.peek-q .q-skill{font-size:12px;color:var(--muted);font-weight:700}
+.peek-q .q-no{margin-left:auto;font-size:12px;color:var(--muted)}
+.peek-q .q-stem{font-size:17px;line-height:1.6;color:var(--ink);font-weight:600}
+.peek-q .q-stem.py{font-family:var(--font-py);font-weight:400}
+.peek-q .q-opts{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.peek-q .q-opts.py .q-opt{font-family:var(--font-py)}
+.peek-q .q-opt{padding:5px 12px;border-radius:10px;background:#F8F4F7;font-size:15px;color:var(--ink-2)}
+.peek-q .q-opt.right{background:#EAF8E4;color:#2F7D32;font-weight:800}
+.peek-q .q-ans{margin-top:10px;font-size:14px;color:#2F7D32}
+.peek-q .q-ans .py{font-family:var(--font-py)}
+.peek-q .q-expl{margin-top:5px;font-size:13px;color:var(--muted)}
+.peek-q .peek-fig{margin:8px 0 2px}
 
 /* ---------- 弹层 ---------- */
 .modal-mask{position:fixed;inset:0;background:rgba(40,25,36,.42);z-index:90;display:grid;place-items:center;padding:20px;animation:fade .16s}

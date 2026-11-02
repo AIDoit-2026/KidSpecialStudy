@@ -9,37 +9,48 @@
   var DIM_CN = { stroke: '笔画正确', structure: '间架结构', clean: '整洁规范', complete: '完成度' };
   /* 写拼音时同一个分项换一套说法 */
   var DIM_CN_PY = { stroke: '字母形体', structure: '占格位置', clean: '声调与整洁', complete: '完成度' };
+  /* 还没看过照片（不知道写的是汉字还是拼音）时，用一套两边都说得通的说法。
+     写字任务不预设写哪种，孩子当天自己选，所以这是常态而不是异常。 */
+  var DIM_CN_ANY = { stroke: '写法正确', structure: '占格结构', clean: '整洁规范', complete: '完成度' };
 
-  function dimCN(mode) { return mode === 'pinyin' ? DIM_CN_PY : DIM_CN; }
+  function dimCN(mode) {
+    if (mode === 'pinyin') return DIM_CN_PY;
+    if (mode === 'hanzi') return DIM_CN;
+    return DIM_CN_ANY;
+  }
   function dimLabel(key, mode) { return dimCN(mode)[key] || key; }
+  function scriptCN(script) {
+    if (script === 'pinyin') return '按拼音';
+    if (script === 'hanzi') return '按汉字';
+    return '汉字/拼音都行';
+  }
 
-  function pinyinOf(rec) {
-    return (rec.chars || []).map(function (c) {
-      return w.CHARS && w.CHARS[c] ? c + ' ' + w.CHARS[c].p : c;
-    }).join('、');
+  /* 这条记录写的是汉字还是拼音：AI 看过照片会把判断写回 mode；
+     家长手评时不知道，返回 null，别替孩子假设。 */
+  function modeOf(rec) {
+    if (!rec || !rec.mode) return null;
+    return rec.mode === 'pinyin' ? 'pinyin' : 'hanzi';
   }
 
   function promptFor(rec) {
-    if (rec && rec.mode === 'pinyin') {
-      return '你是一位小学一年级语文老师，正在批改学生的手写拼音作业照片。\n' +
-        '本次要求写的拼音（字 + 正确读音）：' + pinyinOf(rec) + '\n' +
-        '请从四个维度分别打 1~5 分（整数）：\n' +
-        '1) 字母形体 stroke：字母有没有写对；a、g 是否写成课本上的单层写法；b/d、p/q 有没有写反；n 与 h、u 与 ü 有没有混\n' +
-        '2) 占格位置 structure：是否写在四线三格的中格；b d h l 向上伸到上格；g p q y 向下伸到下格\n' +
-        '3) 声调与整洁 clean：声调符号是否标在正确的字母上、方向对不对，卷面有无涂改\n' +
-        '4) 完成度 complete：是否按要求每个拼音写满一行\n' +
-        '只输出 JSON，不要任何解释：\n' +
-        '{"scores":{"stroke":4,"structure":3,"clean":4,"complete":5},"note":"一句鼓励或建议，20 字以内"}';
-    }
-    return '你是一位小学一年级语文老师，正在批改学生的手写作业照片。\n' +
-      '本次要求写的字：' + (rec.chars || []).join('、') + '\n' +
-      '请从四个维度分别打 1~5 分（整数）：\n' +
-      '1) 笔画正确 stroke：笔顺、笔画有无增减\n' +
-      '2) 间架结构 structure：是否居中、比例是否匀称\n' +
-      '3) 整洁规范 clean：字迹清晰、有无涂改\n' +
-      '4) 完成度 complete：是否按要求每字写满一行\n' +
+    var list = (rec.chars || []).map(function (c) {
+      var p = w.CHARS && w.CHARS[c] ? w.CHARS[c].p : '';
+      return p ? c + '（' + p + '）' : c;
+    }).join('、');
+    return '你是一位小学一年级语文老师，正在批改学生的写字作业照片。\n' +
+      '【写汉字或写拼音都可以，孩子当天自己挑一种】\n' +
+      '- 照片里写的是汉字，就按汉字的标准评；写的是拼音，就按拼音的标准评；\n' +
+      '- 不要因为「只写了拼音、没写汉字」或「只写了汉字、没写拼音」扣分或提醒，两种都算完成；\n' +
+      '- 只有当照片里几乎没写、或写的不是要求的这几个字时，才在 note 里提醒。\n' +
+      '这次要求写的字（字（拼音））：' + list + '\n' +
+      '先判断照片里写的是哪一种，按实际情况填在 script 字段：写了汉字填 "hanzi"，写了拼音填 "pinyin"（别照抄示例）。\n' +
+      '四个维度各打 1~5 分（整数）：\n' +
+      '1) stroke 写法正确：写汉字看笔顺、笔画有无增减；写拼音看字母形体（a、g 是否课本上的单层写法，b/d、p/q 有没有写反）\n' +
+      '2) structure 占格结构：汉字看是否居中、比例是否匀称；拼音看是否写在四线三格的中格，b d h l 向上伸到上格、g p q y 向下伸到下格\n' +
+      '3) clean 整洁规范：字迹或字母清晰、卷面有无涂改；写拼音还要看声调符号标得对不对（轻声不标调是正常的）\n' +
+      '4) complete 完成度：是否按要求每个字（或每个拼音）写满一行\n' +
       '只输出 JSON，不要任何解释：\n' +
-      '{"scores":{"stroke":4,"structure":3,"clean":4,"complete":5},"note":"一句鼓励或建议，20 字以内"}';
+      '{"script":"hanzi","scores":{"stroke":4,"structure":3,"clean":4,"complete":5},"note":"一句鼓励或建议，20 字以内"}';
   }
 
   function blobToBase64(blob) {
@@ -65,7 +76,7 @@
         date: rec.date,
         slot: rec.slot || 0,
         chars: rec.chars || [],
-        mode: rec.mode || 'hanzi',
+        mode: modeOf(rec),
         image: 'photos/' + rec.date + '_' + (rec.slot || 0) + '.jpg',
         prompt: promptFor(rec),
         schema: { stroke: '1-5', structure: '1-5', clean: '1-5', complete: '1-5', note: 'string' },
@@ -136,6 +147,15 @@
     return r.note || r.comment || r.remark || r.评语 || (s && (s.note || s.comment)) || '';
   }
 
+  /* AI 看照片后判断孩子写的是汉字还是拼音（script 字段），认得就记下来 */
+  function pickScript(r) {
+    r = r || {};
+    var s = String(r.script || r.mode || r.type || '').toLowerCase();
+    if (s.indexOf('pinyin') >= 0 || s.indexOf('拼音') >= 0) return 'pinyin';
+    if (s.indexOf('hanzi') >= 0 || s.indexOf('汉字') >= 0) return 'hanzi';
+    return null;
+  }
+
   function applyResult(list) {
     if (!Array.isArray(list)) list = [list];
     var applied = 0, missed = [];
@@ -151,11 +171,13 @@
       // 只覆盖 AI 给了的维度，其余沿用已有分数/默认 3 分，绝不写死成 1 分
       var scores = Object.assign({ stroke: 3, structure: 3, clean: 3, complete: 3 }, rec.scores || {}, p.scores);
       var note = pickNote(r);
+      var script = pickScript(r);
       w.Store.saveWriting(Object.assign({}, rec, {
         scores: scores,
         note: note || rec.note || '',
         reviewedAt: Date.now(),
-        reviewedBy: r.model ? 'ai:' + r.model : 'ai'
+        reviewedBy: r.model ? 'ai:' + r.model : 'ai',
+        mode: script || rec.mode || null   // AI 看过照片就知道是汉字还是拼音，记下来供维度名用
       }));
       applied++;
     });
@@ -180,6 +202,7 @@
       recordId: raw.recordId || '',
       scores: p.scores,
       note: pickNote(raw),
+      script: pickScript(raw),
       model: raw.model || ''
     };
   }
@@ -257,11 +280,12 @@
   }
 
   w.AI = {
-    DIMS: DIMS, DIM_CN: DIM_CN, DIM_CN_PY: DIM_CN_PY,
-    dimCN: dimCN, dimLabel: dimLabel,
+    DIMS: DIMS, DIM_CN: DIM_CN, DIM_CN_PY: DIM_CN_PY, DIM_CN_ANY: DIM_CN_ANY,
+    dimCN: dimCN, dimLabel: dimLabel, modeOf: modeOf, scriptCN: scriptCN,
     promptFor: promptFor, pendingTasks: pendingTasks,
     exportPackage: exportPackage, applyResult: applyResult, importResultFile: importResultFile,
     scoreDirect: scoreDirect, recordId: recordId,
-    pickScores: pickScores, pickNote: pickNote, normalize: normalize, normScore: normScore
+    pickScores: pickScores, pickNote: pickNote, pickScript: pickScript,
+    normalize: normalize, normScore: normScore
   };
 })(window);

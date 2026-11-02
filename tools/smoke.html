@@ -65,6 +65,7 @@
 <script src="../assets/js/pages/parent.js"></script>
 <script src="../assets/js/pages/review.js"></script>
 <script src="../assets/js/pages/print.js"></script>
+<script src="../assets/js/pages/peek.js"></script>
 
 <script>
 (function () {
@@ -102,6 +103,18 @@
     ok('写字 4 字', s0.chars.length === 4, s0.chars.length);
     var allItems = Task.sessionItems(s0);
     ok('题目可解析', allItems.length === 16, allItems.length);
+
+    /* 按天预览：家长挑日期检查题目，不能写记录，而且要真的往后走 */
+    var pvD1 = U.addDays(U.today(), 7), pvD2 = U.addDays(U.today(), 8);
+    var pvA = Task.preview(pvD1), pvB = Task.preview(pvD2), pvA2 = Task.preview(pvD1);
+    ok('预览不写记录', !Store.day(pvD1) && !Store.day(pvD2));
+    ok('未来预览会往后推进',
+      pvA.plan.length > 0 && pvB.plan.length > 0 && !!pvA.plan[0].yw && !!pvB.plan[0].yw &&
+      pvA.plan[0].yw.key !== pvB.plan[0].yw.key,
+      (pvA.plan[0].yw || {}).title + ' / ' + (pvB.plan[0].yw || {}).title);
+    ok('同一天预览两次看到同一份题',
+      JSON.stringify(pvA.plan[0].items) === JSON.stringify(pvA2.plan[0].items));
+    ok('预览不改孩子进度', Store.progress().yw.unit === 0 && Store.progress().yw.node === 0);
 
     /* 内容质量：不出重复题、不出抄字母的送分题 */
     var pyStems = {}, pyDup = 0, pyCount = 0;
@@ -146,9 +159,38 @@
         return k === i.answer || !CHARS[o] || CHARS[o].p !== a.p;
       });
     }), sylItems.length + ' 题');
-    ok('写字默认写汉字', Store.settings().writingMode === 'hanzi', Store.settings().writingMode);
-    ok('拼音评分提示词区分占格', AI.promptFor({ chars: ['天'], mode: 'pinyin' }).indexOf('四线三格') >= 0);
-    ok('汉字评分提示词用笔画', AI.promptFor({ chars: ['天'] }).indexOf('笔顺') >= 0);
+    /* 结构题：字库里有半包围 / 全包围的字，以前会兜底成「独体字」答错 */
+    var structN = 0, structBad = 0;
+    Content.allNodes('chinese').forEach(function (n) {
+      n.items.forEach(function (i) {
+        if (i.skill !== '认字.字形结构' || !i.options) return;
+        structN++;
+        var ch = (i.stem.match(/「(.)」/) || [])[1];
+        var rec = CHARS[ch];
+        var ans = i.options[i.answer];
+        if (!rec || !ans || ans.indexOf(rec.struct) < 0) structBad++;
+      });
+    });
+    ok('结构题答案与字库一致', structN > 0 && structBad === 0, structN + ' 题，错 ' + structBad);
+    ok('写字不预设写汉字或拼音', AI.modeOf({ chars: ['天'] }) === null && !('writingMode' in Store.settings()));
+    var pyPrompt = AI.promptFor({ chars: ['天'], mode: 'pinyin' });
+    ok('提示词说两种都可以', pyPrompt.indexOf('写汉字或写拼音都可以') >= 0);
+    ok('提示词不因只写一种扣分', pyPrompt.indexOf('都算完成') >= 0);
+    ok('提示词带四线三格标准', pyPrompt.indexOf('四线三格') >= 0 && pyPrompt.indexOf('单层写法') >= 0);
+    ok('提示词要求判断写了哪种', pyPrompt.indexOf('"script"') >= 0 && pyPrompt.indexOf('tiān') >= 0);
+    ok('提示词同时含汉字标准', pyPrompt.indexOf('笔顺') >= 0);
+    ok('AI 判定写拼音会记下来', AI.pickScript({ script: 'pinyin' }) === 'pinyin' && AI.pickScript({ script: 'hanzi' }) === 'hanzi');
+    /* AI 看过照片后把「写的是拼音」写回记录，批改页维度名才会跟着变。
+       用一条 2000 年的假记录测，别污染今天的流程数据。 */
+    (function () {
+      Store.saveWriting({ date: '2000-01-01', slot: 0, chars: ['天'], photoId: 'p_smoke', mode: null, scores: null, note: '', reviewedAt: null });
+      AI.applyResult([{ recordId: 'w_2000-01-01_0', script: 'pinyin', scores: { stroke: 4 }, note: 'ok' }]);
+      var r = Store.writingOf('2000-01-01', 0);
+      ok('AI 把判定写回记录的 mode', r && r.mode === 'pinyin' && r.scores.stroke === 4, r && r.mode);
+    })();
+    ok('维度名跟着模式变', AI.dimLabel('stroke', 'pinyin') === '字母形体'
+      && AI.dimLabel('stroke', 'hanzi') === '笔画正确'
+      && AI.dimLabel('stroke', null) === '写法正确');
 
     /* 练习页渲染（在做题之前） */
     try {

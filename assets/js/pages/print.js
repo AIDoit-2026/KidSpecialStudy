@@ -131,14 +131,16 @@
     }
 
     if (chars && chars.length) {
-      var isPy = query.py === '1' ||
-        ((session && session.writingMode) || w.Store.settings().writingMode) === 'pinyin';
-      sheet.appendChild(U.h('div', { class: 'pr-section', text: isPy ? '四、写拼音（每个写满一行，注意四线三格）' : '四、写字（每字写满一行）' }));
-      chars.forEach(function (c) {
-        var n = mode === 'writing' ? 6 : 4;
-        if (isPy) sheet.appendChild(pinyinRow(w.CHARS[c] ? w.CHARS[c].p : '', n));
-        else sheet.appendChild(writingRow(c, n));
-      });
+      var n = mode === 'writing' ? 6 : 4;
+      /* 汉字和拼音两套格子都印出来，孩子当天想写哪种就写哪种 */
+      sheet.appendChild(U.h('div', { class: 'pr-section', text: '四、写字（每字写满一行，先描第一个）' }));
+      chars.forEach(function (c) { sheet.appendChild(writingRow(c, n)); });
+
+      var pyChars = chars.filter(function (c) { return w.CHARS[c] && w.CHARS[c].p; });
+      if (pyChars.length) {
+        sheet.appendChild(U.h('div', { class: 'pr-section', text: '五、写拼音（想写拼音就写这几行，注意四线三格和声调）' }));
+        pyChars.forEach(function (c) { sheet.appendChild(pinyinRow(w.CHARS[c].p, n)); });
+      }
     }
 
     if (!items.length && !(chars && chars.length)) {

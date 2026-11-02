@@ -1,19 +1,19 @@
 @echo off
 chcp 65001 >nul
-title ±¦±´Ã¿ÈÕÒ»Á· - ±¾µØ·þÎñÆ÷
+title å®è´æ¯æ—¥ä¸€ç»ƒ - æœ¬åœ°æœåŠ¡å™¨
 cd /d "%~dp0"
 set PORT=18080
 
 echo.
 echo   ===============================================
-echo    ±¦±´Ã¿ÈÕÒ»Á· ¡¤ ±¾µØ·þÎñÆ÷
-echo    Æô¶¯ºó»á×Ô¶¯´ò¿ªä¯ÀÀÆ÷£¬¹Ø±Õ±¾´°¿Ú¼´Í£Ö¹
+echo    å®è´æ¯æ—¥ä¸€ç»ƒ Â· æœ¬åœ°æœåŠ¡å™¨
+echo    å¯åŠ¨åŽä¼šè‡ªåŠ¨æ‰“å¼€æµè§ˆå™¨ï¼Œå…³é—­æœ¬çª—å£å³åœæ­¢
 echo   ===============================================
 echo.
 
 where python >nul 2>nul
 if %errorlevel%==0 (
-  echo   [1/2] ÕýÔÚÆô¶¯ http://127.0.0.1:%PORT%/
+  echo   [1/2] æ­£åœ¨å¯åŠ¨ http://127.0.0.1:%PORT%/
   start "" "http://127.0.0.1:%PORT%/index.html"
   python -m http.server %PORT% --bind 127.0.0.1
   goto :eof
@@ -21,12 +21,12 @@ if %errorlevel%==0 (
 
 where node >nul 2>nul
 if %errorlevel%==0 (
-  echo   [1/2] ÕýÔÚÆô¶¯ http://127.0.0.1:%PORT%/
+  echo   [1/2] æ­£åœ¨å¯åŠ¨ http://127.0.0.1:%PORT%/
   start "" "http://127.0.0.1:%PORT%/index.html"
-  node -e "const http=require('http'),fs=require('fs'),path=require('path');const mime={'.html':'text/html;charset=utf-8','.js':'text/javascript;charset=utf-8','.css':'text/css;charset=utf-8','.json':'application/json','.png':'image/png','.jpg':'image/jpeg','.svg':'image/svg+xml'};http.createServer((q,s)=>{let f=decodeURIComponent(q.url.split('?')[0]);if(f==='/'||f==='')f='/index.html';const p=path.join(process.cwd(),f);fs.readFile(p,(e,d)=>{if(e){s.writeHead(404);s.end('404');return}s.writeHead(200,{'Content-Type':mime[path.extname(p).toLowerCase()]||'application/octet-stream'});s.end(d)})}).listen(+process.env.PORT||18080,'127.0.0.1',()=>console.log('  [2/2] ·þÎñÒÑÆô¶¯£¬°´ Ctrl+C Í£Ö¹'));"
+  node -e "const http=require('http'),fs=require('fs'),path=require('path');const mime={'.html':'text/html;charset=utf-8','.js':'text/javascript;charset=utf-8','.css':'text/css;charset=utf-8','.json':'application/json','.png':'image/png','.jpg':'image/jpeg','.svg':'image/svg+xml'};http.createServer((q,s)=>{let f=decodeURIComponent(q.url.split('?')[0]);if(f==='/'||f==='')f='/index.html';const p=path.join(process.cwd(),f);fs.readFile(p,(e,d)=>{if(e){s.writeHead(404);s.end('404');return}s.writeHead(200,{'Content-Type':mime[path.extname(p).toLowerCase()]||'application/octet-stream'});s.end(d)})}).listen(+process.env.PORT||18080,'127.0.0.1',()=>console.log('  [2/2] æœåŠ¡å·²å¯åŠ¨ï¼ŒæŒ‰ Ctrl+C åœæ­¢'));"
   goto :eof
 )
 
-echo   [!] Ã»ÓÐÕÒµ½ python »ò node£¬ÇëÖ±½ÓË«»÷ index.html
-echo       £¨¹¦ÄÜ¶¼ÄÜÓÃ£¬µ«ÕÕÆ¬Ö»ÄÜ´æ×î½ü 40 ÕÅ£©
+echo   [!] æ²¡æœ‰æ‰¾åˆ° python æˆ– nodeï¼Œè¯·ç›´æŽ¥åŒå‡» index.html
+echo       ï¼ˆåŠŸèƒ½éƒ½èƒ½ç”¨ï¼Œä½†ç…§ç‰‡åªèƒ½å­˜æœ€è¿‘ 40 å¼ ï¼‰
 pause

@@ -6,6 +6,7 @@
     { key: 'overview', label: '概览' },
     { key: 'kids', label: '孩子' },
     { key: 'review', label: '批改' },
+    { key: 'peek', label: '看题' },
     { key: 'settings', label: '设置' },
     { key: 'data', label: '数据' },
     { key: 'ai', label: 'AI 评分' }
@@ -41,6 +42,7 @@
     if (tab === 'overview') renderOverview(view);
     else if (tab === 'kids') renderKids(view);
     else if (tab === 'review') renderReview(view);
+    else if (tab === 'peek') renderPeek(view, query);
     else if (tab === 'settings') renderSettings(view);
     else if (tab === 'data') renderData(view);
     else if (tab === 'ai') renderAI(view);
@@ -318,6 +320,131 @@
     return row;
   }
 
+  /* ---------------- 看题（按天预览题目，检查质量） ---------------- */
+  function countOf(s) {
+    if (!s) return 0;
+    if (typeof s.total === 'number' && s.total) return s.total;
+    var it = s.items || {};
+    return (it.chars || []).length + (it.pinyin || []).length + (it.math || []).length;
+  }
+
+  function peekLine(label, text, right) {
+    return U.h('div', { class: 'peek-line' },
+      U.h('b', { text: label }),
+      U.h('span', { class: 'pl-text', text: text }),
+      U.h('span', { class: 'pl-right', text: right })
+    );
+  }
+
+  function renderPeek(view, query) {
+    var today = U.today();
+    var date = /^\d{4}-\d{2}-\d{2}$/.test(query.date || '') ? query.date : today;
+    var info = w.Task.preview(date);
+    var plan = info.plan || [];
+    var st = w.Store.settings();
+    var dayType = w.Schedule.dayType(date);
+    var holiday = w.Schedule.holidayName(date);
+    var total = plan.reduce(function (n, s) { return n + countOf(s); }, 0);
+
+    var head = U.h('div', { class: 'card' });
+    head.appendChild(U.h('div', { class: 'card-title' },
+      U.h('h2', { text: '看题 · 检查题目质量' }),
+      U.h('span', { class: 'pill purple', text: '只读预览' })
+    ));
+    head.appendChild(U.h('div', { class: 'small muted',
+      text: '选一天，看看那天会出哪些题、答案是什么。预看不会写进记录，也不影响孩子的进度。' }));
+
+    var bar = U.h('div', { class: 'peek-bar', style: { marginTop: '14px' } });
+    bar.appendChild(U.h('button', {
+      class: 'btn btn-sm', text: '◀ 前一天',
+      onclick: function () { App.go('#/parent?tab=peek&date=' + U.addDays(date, -1)); }
+    }));
+    var inp = U.h('input', {
+      type: 'date', class: 'input', value: date,
+      min: U.addDays(today, -365), max: U.addDays(today, 365)
+    });
+    inp.addEventListener('change', function () {
+      if (inp.value) App.go('#/parent?tab=peek&date=' + inp.value);
+    });
+    bar.appendChild(inp);
+    bar.appendChild(U.h('button', {
+      class: 'btn btn-sm', text: '后一天 ▶',
+      onclick: function () { App.go('#/parent?tab=peek&date=' + U.addDays(date, 1)); }
+    }));
+    if (date !== today) {
+      bar.appendChild(U.h('button', {
+        class: 'btn btn-sm btn-primary', text: '回到今天',
+        onclick: function () { App.go('#/parent?tab=peek&date=' + today); }
+      }));
+    }
+    head.appendChild(bar);
+
+    var meta = U.h('div', { class: 'peek-meta' });
+    meta.appendChild(U.h('b', { text: U.fmtCn(date) + ' ' + U.weekdayCn(date) }));
+    meta.appendChild(U.h('span', { text: '　' + w.Schedule.typeLabel(dayType) + (holiday ? '（' + holiday + '）' : '') }));
+    meta.appendChild(U.h('span', { text: '　应完成 ' + w.Schedule.capacity(date, st) + ' 场' }));
+    meta.appendChild(U.h('span', { text: '　当天排 ' + plan.length + ' 场 / ' + total + ' 题' }));
+    head.appendChild(meta);
+
+    var srcText = info.source === 'record'
+      ? '这天已经生成过计划，看到的就是孩子实际做的那份题。'
+      : info.source === 'sim'
+        ? '未来日期：按「每天都按时完成」往后推演的，看到的是那天真会排到的题，不同日期会往后走。'
+        : '这天还没有记录，按当前进度算出来的一份。';
+    head.appendChild(U.h('div', { class: 'small muted', style: { marginTop: '6px' }, text: srcText }));
+    if (info.truncated) {
+      head.appendChild(U.h('div', { class: 'small', style: { marginTop: '6px', color: 'var(--pink-d)' },
+        text: '日期太远，只推演了前 800 天，后面的题仅供参考。' }));
+    }
+    view.appendChild(head);
+
+    if (!plan.length) {
+      var empty = U.h('div', { class: 'card' });
+      empty.appendChild(U.h('div', { class: 'empty' },
+        U.h('span', { class: 'e-emoji', text: '🌤' }),
+        '这一天没有排练习，可能是教材进度已经走完，或当天不在练习计划里。'));
+      view.appendChild(empty);
+      return;
+    }
+
+    plan.forEach(function (s, i) {
+      var n = countOf(s);
+      var c = U.h('div', { class: 'card' });
+      c.appendChild(U.h('div', { class: 'card-title' },
+        U.h('h2', { text: '第 ' + (i + 1) + ' 场' }),
+        U.h('div', { class: 'row' },
+          U.h('span', {
+            class: 'pill ' + (s.type === 'catchup' ? 'yellow' : s.type === 'extra' ? 'blue' : 'green'),
+            text: s.type === 'catchup' ? '补欠账' : s.type === 'extra' ? '当天加练' : '新内容'
+          }),
+          U.h('span', { class: 'pill gray', text: n + ' 题' }),
+          U.h('button', {
+            class: 'btn btn-sm btn-primary', text: '看题目 →',
+            onclick: function () { App.go('#/peek?date=' + date + '&slot=' + i); }
+          })
+        )
+      ));
+
+      if (s.yw) {
+        c.appendChild(peekLine('语文', s.yw.unitName + ' · ' + s.yw.title,
+          (s.items.chars || []).length + ' 认字 / ' + (s.items.pinyin || []).length + ' 拼音'));
+      }
+      if (s.sx) {
+        c.appendChild(peekLine('数学', s.sx.unitName + ' · ' + s.sx.title,
+          (s.items.math || []).length + ' 题'));
+      }
+      if (s.chars && s.chars.length) {
+        c.appendChild(peekLine('写字', s.chars.join('　'), s.chars.length + ' 个'));
+      }
+
+      if (s.status === 'done') {
+        c.appendChild(U.h('div', { class: 'small muted', style: { marginTop: '8px' },
+          text: '这场孩子已经做完了' + (s.total && typeof s.correct === 'number' ? '，答对 ' + s.correct + '/' + s.total : '') }));
+      }
+      view.appendChild(c);
+    });
+  }
+
   function exportPkg() {
     U.toast('正在打包作业照片…');
     w.AI.exportPackage().then(function (n) {
@@ -373,23 +500,13 @@
     });
     cpw.addEventListener('change', function () { w.Store.saveSettings({ charsPerDay: Number(cpw.value) }); });
 
-    var wm = U.h('select', { class: 'input', style: { maxWidth: '160px' } });
-    [['hanzi', '写汉字'], ['pinyin', '写拼音']].forEach(function (o) {
-      wm.appendChild(U.h('option', {
-        value: o[0], text: o[1], selected: (st.writingMode || 'hanzi') === o[0]
-      }));
-    });
-    wm.addEventListener('change', function () {
-      w.Store.saveSettings({ writingMode: wm.value });
-      U.toast('已保存，下次写字按「' + (wm.value === 'pinyin' ? '写拼音' : '写汉字') + '」来');
-    });
-
     cfg.appendChild(U.h('div', { class: 'row wrap', style: { marginTop: '14px', gap: '18px' } },
       U.h('div', { class: 'field', style: { margin: 0, maxWidth: '240px' } },
-        U.h('label', { text: '每天写字个数' }), cpw),
-      U.h('div', { class: 'field', style: { margin: 0, maxWidth: '240px' } },
-        U.h('label', { text: '写字内容' }), wm)
+        U.h('label', { text: '每天写字个数' }), cpw)
     ));
+
+    cfg.appendChild(U.h('div', { class: 'small muted', style: { marginTop: '8px' },
+      text: '写字任务里每个字都同时给出田字格和四线三格，写汉字还是写拼音由孩子当天自己选，不用提前设。' }));
 
     cfg.appendChild(U.h('div', { class: 'row wrap', style: { gap: '10px', marginTop: '10px' } },
       U.h('button', {
