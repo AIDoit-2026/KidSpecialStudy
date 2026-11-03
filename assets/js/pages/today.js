@@ -77,12 +77,21 @@
 
     var actions = U.h('div', { class: 'h-actions' });
     var allDone = sum.allDone;
+
+    /* 进场统一走这里：连着练到第 3 场时先提醒休息 */
+    function startSlot(slot, module) {
+      w.Task.restGateIfNeeded(date, slot).then(function (go) {
+        if (go) App.go('#/practice?slot=' + slot + (module ? '&module=' + module : ''));
+        else U.toast('好，先去歇一会儿，回来接着练', 'ok');
+      });
+    }
+
     actions.appendChild(U.h('button', {
       class: 'btn ' + (allDone ? 'btn-ghost' : 'btn-primary') + ' btn-lg',
       text: allDone ? '✓ 今日已全部完成' : (curIdx > 0 ? '继续第 ' + (curIdx + 1) + ' 场' : '开始今天的练习'),
       onclick: function () {
         if (allDone) { U.toast('今天已经完成 ' + sum.doneCount + ' 场，太棒了'); return; }
-        App.go('#/practice?slot=' + curIdx);
+        startSlot(curIdx);
       }
     }));
     actions.appendChild(U.h('button', {
@@ -115,7 +124,7 @@
         text: '今天应完成 ' + sum.capacity + ' 场，当前计划只有 ' + sum.planned + ' 场' }));
       if (sum.doneCount === 0) {
         tips.appendChild(U.h('div', { class: 'small muted', style: { margin: '6px 0 10px' },
-          text: '按「工作日 1 场、周六 ' + (settings.satCapacity || 3) + ' 场、周日 ' + (settings.sunCapacity || 2) + ' 场、节假日 ' + (settings.holidayCapacity || 3) + ' 场」的规则，点下面按钮重排今天。' }));
+          text: '按当前设置「工作日 ' + (settings.workCapacity || 1) + ' 场、周六 ' + (settings.satCapacity || 3) + ' 场、周日 ' + (settings.sunCapacity || 2) + ' 场、节假日 ' + (settings.holidayCapacity || 3) + ' 场」，点下面按钮重排今天。' }));
         tips.appendChild(U.h('button', {
           class: 'btn btn-sm btn-primary', text: '按新规则重排今天',
           onclick: function () {
@@ -137,7 +146,7 @@
       day.plan.forEach(function (s, i) {
         var cls = 'session-chip' + (s.status === 'done' ? ' done' : '') + (i === curIdx && s.status !== 'done' ? ' now' : '');
         strip.appendChild(U.h('div', {
-          class: cls, onclick: function () { if (s.status !== 'done') App.go('#/practice?slot=' + i); }
+          class: cls, onclick: function () { if (s.status !== 'done') startSlot(i); }
         },
           U.h('span', { class: 'dot' }),
           U.h('span', { text: '第 ' + (i + 1) + ' 场' }),
@@ -145,6 +154,22 @@
         ));
       });
       view.appendChild(strip);
+    }
+
+    /* ---- 连着练了 2 场以上：温和地提示休息一次（第 3 场开始前还会再拦一次） ---- */
+    var stk = w.Task.streakInfo(date);
+    if (stk.count >= 2 && !sum.allDone) {
+      view.appendChild(U.h('div', {
+        class: 'card', style: { marginTop: '12px', background: '#F3F8FF', border: '1px solid #D6E6FF' }
+      },
+        U.h('div', { class: 'row', style: { alignItems: 'flex-start' } },
+          U.h('span', { style: { fontSize: '24px' }, text: '☕' }),
+          U.h('div', {},
+            U.h('div', { style: { fontWeight: '800', fontSize: '15px' }, text: '已经连着练了 ' + stk.count + ' 场啦' }),
+            U.h('div', { class: 'small muted', text: '下一场开始前会提醒你休息一下。也可以现在就去喝口水、看看窗外的远处，眼睛会舒服很多。' })
+          )
+        )
+      ));
     }
 
     /* ---- 四张任务卡 ---- */
@@ -168,19 +193,19 @@
         emoji: '🈶', name: '认字', color: 'var(--purple)',
         sub: cur.yw ? cur.yw.lesson || cur.yw.title : '巩固练习',
         done: pr.chars.done, total: pr.chars.total,
-        onClick: function () { App.go('#/practice?slot=' + curIdx + '&module=chars'); }
+        onClick: function () { startSlot(curIdx, 'chars'); }
       }));
       grid.appendChild(card({
         emoji: '🔤', name: '拼音', color: 'var(--blue)',
         sub: '拼读 · 声调 · 辨析',
         done: pr.pinyin.done, total: pr.pinyin.total,
-        onClick: function () { App.go('#/practice?slot=' + curIdx + '&module=pinyin'); }
+        onClick: function () { startSlot(curIdx, 'pinyin'); }
       }));
       grid.appendChild(card({
         emoji: '🔢', name: '数学', color: 'var(--orange)',
         sub: cur.sx ? cur.sx.lesson || cur.sx.title : '巩固练习',
         done: pr.math.done, total: pr.math.total,
-        onClick: function () { App.go('#/practice?slot=' + curIdx + '&module=math'); }
+        onClick: function () { startSlot(curIdx, 'math'); }
       }));
       grid.appendChild(card({
         emoji: '🖌', name: '写字', color: 'var(--green)',
@@ -201,7 +226,7 @@
         ? U.fmtCn(sum.eta.date) + '（' + U.weekdayCn(sum.eta.date) + '）'
         : '假期';
       var holTxt = nh.length
-        ? '最近的' + nh[0].name + '是 ' + U.fmtCn(nh[0].date) + '，放假 ' + nh[0].days + ' 天，每天最多 3 场。'
+        ? '最近的' + nh[0].name + '是 ' + U.fmtCn(nh[0].date) + '，放假 ' + nh[0].days + ' 天，每天最多 ' + ((settings.holidayCapacity || 3) + (settings.catchupExtra === undefined ? 2 : Number(settings.catchupExtra))) + ' 场。'
         : '假期按国务院放假安排，可在家长中心维护。';
       view.appendChild(U.h('div', { class: 'card', style: { marginTop: '16px' } },
         U.h('div', { class: 'row', style: { alignItems: 'flex-start' } },

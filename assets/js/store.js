@@ -106,11 +106,12 @@
       review: true,
       charsPerDay: 4,
       catchupWriting: true,     // 补练场次是否含写字
-      // 每天「应完成」的场次：工作日 1 / 周六 3 / 周日 2 / 法定节假日 3
-      satCapacity: 3,           // 周六固定场次
-      sunCapacity: 2,           // 周日固定场次
-      holidayCapacity: 3,       // 法定节假日固定场次
-      catchupExtra: 2,          // 周末/节假日最多额外补几场欠账
+      // 每天「应完成」的场次：全部可由家长改，括号里是推荐值（也是原来写死的值）
+      workCapacity: 1,          // 工作日（推荐 1）
+      satCapacity: 3,           // 周六（推荐 3）
+      sunCapacity: 2,           // 周日（推荐 2）
+      holidayCapacity: 3,       // 法定节假日（推荐 3）
+      catchupExtra: 2,          // 每天最多额外补几场欠账（推荐 2，0 = 不补）
       pinHash: null,
       ai: { enabled: false, baseURL: '', apiKey: '', model: '', autoScore: false },
       theme: 'light',

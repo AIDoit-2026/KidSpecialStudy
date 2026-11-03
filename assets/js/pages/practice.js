@@ -121,6 +121,20 @@
     var session;
     var queue;
 
+    /* 连着练到第 3 场：进来先提醒休息。
+       选「接着练」会记下这场已提醒过，重绘时就不会再拦。 */
+    if (!redoIds && w.Task.shouldRest(date, slot)) {
+      w.Task.restGate(date, slot).then(function (go) {
+        if (go) App.render();
+        else App.go('#/today');
+      });
+      view.appendChild(U.h('div', { class: 'card' },
+        U.h('div', { class: 'empty' },
+          U.h('span', { class: 'e-emoji', text: '☕' }),
+          '连着练了几场，先让眼睛歇一会儿')));
+      return;
+    }
+
     if (redoIds && redoIds.length) {
       session = { answers: {}, items: { chars: [], pinyin: [], math: [] }, chars: [], status: 'todo', redo: true };
       queue = redoIds;
@@ -133,6 +147,12 @@
         App.go('#/today');
         return;
       }
+    }
+
+    /* 记下这一场开始的时间，用来判断下一场是不是「连着练」 */
+    if (session && !session.redo && !session.startedAt) {
+      session.startedAt = Date.now();
+      w.Store.saveDay(date, day);
     }
 
     var state = {

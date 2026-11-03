@@ -266,6 +266,49 @@
     var wp3 = Task.buildPlan('2026-11-07');
     ok('欠账再多也只补 2 场', wp3.length === 5, wp3.length);
 
+    section('场次与补练可调');
+    ok('推荐值 = 原来的固定规则',
+      Schedule.RECOMMENDED.workCapacity === 1 && Schedule.RECOMMENDED.satCapacity === 3 &&
+      Schedule.RECOMMENDED.sunCapacity === 2 && Schedule.RECOMMENDED.holidayCapacity === 3,
+      JSON.stringify(Schedule.RECOMMENDED));
+    ok('工作日也能补练', Schedule.catchupRoom('2026-11-03', { catchupExtra: 2 }) === 2,
+      Schedule.catchupRoom('2026-11-03', { catchupExtra: 2 }));
+    ok('补练可以设成不补', Schedule.catchupRoom('2026-11-03', { catchupExtra: 0 }) === 0);
+    ok('工作日场次可改', Schedule.capacity('2026-11-03', { workCapacity: 2 }) === 2,
+      Schedule.capacity('2026-11-03', { workCapacity: 2 }));
+    Store.saveProgress({ sessionsDone: 99999 });
+    Store.saveSettings({ workCapacity: 2 });
+    var wpk = Task.buildPlan('2026-11-03');
+    ok('工作日改 2 场就排 2 场', wpk.length === 2, wpk.length);
+    Store.saveSettings({ workCapacity: 1 });
+    Store.saveSettings({ catchupExtra: 3 });
+    Store.saveProgress({ sessionsDone: Schedule.expectedSessions(Store.progress().startDate, '2026-11-03', Store.settings()) - 20 });
+    var wpk2 = Task.buildPlan('2026-11-03');
+    ok('补练上限跟着设置走（1 + 3 场）', wpk2.length === 4, wpk2.length);
+    Store.saveSettings({ catchupExtra: 2 });
+
+    section('连续练习提醒');
+    var rd = '2026-10-20';
+    function mkDay(gaps) {
+      var t = new Date(2026, 9, 20, 9, 0, 0).getTime(), plan = [];
+      gaps.forEach(function (g, i) {
+        if (g === null) { plan.push({ slot: i, status: 'todo', chars: [] }); return; }
+        plan.push({ slot: i, status: 'done', chars: [], startedAt: t, finishedAt: t + 20 * 60000 });
+        t += (20 + g) * 60000;
+      });
+      return { plan: plan, done: false };
+    }
+    Store.saveDay(rd, mkDay([2, 2, null, null]));
+    ok('连做 2 场', Task.streakInfo(rd).count === 2, Task.streakInfo(rd).count);
+    ok('第 3 场提醒休息', Task.shouldRest(rd, 2) === true);
+    ok('前两场不打扰', Task.shouldRest(rd, 1) === false);
+    Store.saveDay(rd, mkDay([90, 2, null]));
+    ok('中间歇够了不再提醒', Task.shouldRest(rd, 2) === false, 'streak=' + Task.streakInfo(rd).count);
+    Store.saveDay(rd, mkDay([2, 2, 2, null]));
+    ok('连做 3 场，第 4 场也提醒', Task.shouldRest(rd, 3) === true && Task.streakInfo(rd).count === 3);
+    var rdDay = Store.day(rd); rdDay.restAck = 3; Store.saveDay(rd, rdDay);
+    ok('点过「接着练」不再重复提醒', Task.shouldRest(rd, 3) === false);
+
     section('写字与批改');
     Store.saveWriting({ date: U.today(), slot: 0, chars: ['我', '们'], photoId: 'p_test', scores: null, reviewedAt: null });
     ok('待批改 1 条', Store.pendingReviews().length === 1);

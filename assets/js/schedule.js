@@ -62,25 +62,37 @@
     return t === 'holiday' ? '节假日' : t === 'weekend' ? '周末' : '工作日';
   }
 
-  /* 当日「应完成」的场次：工作日 1、周六 3、周日 2、法定节假日 3
+  /* 推荐场次 = 原来的固定规则，家长没改过就按这个来 */
+  var RECOMMENDED = {
+    workCapacity: 1,      // 工作日
+    satCapacity: 3,       // 周六
+    sunCapacity: 2,       // 周日
+    holidayCapacity: 3,   // 法定节假日
+    catchupExtra: 2       // 每天最多额外补几场欠账
+  };
+
+  function num(v, def) {
+    var n = Number(v);
+    return (v === undefined || v === null || v === '' || isNaN(n)) ? def : n;
+  }
+
+  /* 当日「应完成」的场次：四种日子都由家长设定，默认 = 推荐值
      —— 这是目标场次，不是上限：做完这几场才算当天完成 */
   function capacity(date, settings) {
     settings = settings || {};
     var t = dayType(date);
-    if (t === 'holiday') return Math.max(1, settings.holidayCapacity || 3);
+    if (t === 'holiday') return Math.max(1, num(settings.holidayCapacity, RECOMMENDED.holidayCapacity));
     if (t === 'weekend') {
       return U.weekday(date) === 6
-        ? Math.max(1, settings.satCapacity || 3)     // 周六
-        : Math.max(1, settings.sunCapacity || 2);    // 周日
+        ? Math.max(1, num(settings.satCapacity, RECOMMENDED.satCapacity))     // 周六
+        : Math.max(1, num(settings.sunCapacity, RECOMMENDED.sunCapacity));    // 周日
     }
-    return 1;
+    return Math.max(1, num(settings.workCapacity, RECOMMENDED.workCapacity));
   }
 
-  /* 当日还能额外补几场欠账：工作日不补，周末/节假日有上额 */
+  /* 当日还能额外补几场欠账：现在每天都能补（工作日也补），场次由家长设定，0 = 不补 */
   function catchupRoom(date, settings) {
-    if (dayType(date) === 'workday') return 0;
-    var n = settings ? settings.catchupExtra : undefined;
-    return Math.max(0, n === undefined ? 2 : Number(n) || 0);
+    return Math.max(0, num(settings ? settings.catchupExtra : undefined, RECOMMENDED.catchupExtra));
   }
 
   /* 从 startDate（含）到 date（不含）应完成多少场：逐日累加当日目标 */
@@ -100,7 +112,7 @@
     return Math.max(0, exp - (progress.sessionsDone || 0));
   }
 
-  /* 今日计划场次 = 当日目标场次 + 最多 2 场补欠账 */
+  /* 今日计划场次 = 当日目标场次 + 最多 catchupExtra 场补欠账 */
   function plannedSessions(progress, date, settings) {
     var cap = capacity(date, settings);
     var back = backlog(progress, date, settings);
@@ -166,6 +178,7 @@
   }
 
   w.Schedule = {
+    RECOMMENDED: RECOMMENDED,
     all: all, holidayName: holidayName, isHoliday: isHoliday, isWeekend: isWeekend,
     dayType: dayType, typeLabel: typeLabel, capacity: capacity, catchupRoom: catchupRoom,
     expectedSessions: expectedSessions, backlog: backlog, plannedSessions: plannedSessions,

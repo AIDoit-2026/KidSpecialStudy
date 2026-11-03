@@ -596,34 +596,67 @@
       U.h('div', { class: 'k', text: '开始日期' }), U.h('div', { text: p.startDate }),
       U.h('div', { class: 'k', text: '已完成' }), U.h('div', { text: (p.sessionsDone || 0) + ' 场' })
     ));
-    var sat = U.h('select', { class: 'input', style: { maxWidth: '120px' } });
-    [1, 2, 3].forEach(function (n) { sat.appendChild(U.h('option', { value: n, text: n + ' 场', selected: (st.satCapacity || 3) === n })); });
-    sat.addEventListener('change', function () {
-      w.Store.saveSettings({ satCapacity: Number(sat.value) });
-      U.toast('已保存：周六 ' + sat.value + ' 场', 'ok');
-    });
-    var sun = U.h('select', { class: 'input', style: { maxWidth: '120px' } });
-    [1, 2, 3].forEach(function (n) { sun.appendChild(U.h('option', { value: n, text: n + ' 场', selected: (st.sunCapacity || 2) === n })); });
-    sun.addEventListener('change', function () {
-      w.Store.saveSettings({ sunCapacity: Number(sun.value) });
-      U.toast('已保存：周日 ' + sun.value + ' 场', 'ok');
-    });
-    var hd = U.h('select', { class: 'input', style: { maxWidth: '120px' } });
-    [1, 2, 3].forEach(function (n) { hd.appendChild(U.h('option', { value: n, text: n + ' 场', selected: (st.holidayCapacity || 3) === n })); });
-    hd.addEventListener('change', function () { w.Store.saveSettings({ holidayCapacity: Number(hd.value) }); U.toast('已保存'); });
+    var REC = w.Schedule.RECOMMENDED || { workCapacity: 1, satCapacity: 3, sunCapacity: 2, holidayCapacity: 3, catchupExtra: 2 };
+    var ruleEl = U.h('div', { class: 'small muted', style: { marginTop: '10px' } });
+
+    function setOne(key, val) {
+      var o = {}; o[key] = Number(val);
+      w.Store.saveSettings(o);
+    }
+
+    function capSelect(key, label, unit) {
+      var def = REC[key];
+      var list = (key === 'catchupExtra') ? [0, 1, 2, 3, 4, 5] : [1, 2, 3, 4, 5];
+      var now = Number(st[key] === undefined ? def : st[key]);
+      var sel = U.h('select', { class: 'input', style: { maxWidth: '120px' } });
+      list.forEach(function (n) {
+        sel.appendChild(U.h('option', {
+          value: n, selected: now === n,
+          text: (unit === '场' && n === 0) ? '不补' : (n + ' ' + unit)
+        }));
+      });
+      sel.addEventListener('change', function () {
+        setOne(key, sel.value);
+        U.toast('已保存：' + label + ' ' + (sel.value === '0' && unit === '场' ? '不补' : sel.value + ' ' + unit), 'ok');
+        refreshRule();
+      });
+      return sel;
+    }
+
+    var work = capSelect('workCapacity', '工作日', '场');
+    var sat = capSelect('satCapacity', '周六', '场');
+    var sun = capSelect('sunCapacity', '周日', '场');
+    var hd = capSelect('holidayCapacity', '法定节假日', '场');
+    var cp = capSelect('catchupExtra', '每天补练', '场');
 
     sch.appendChild(U.h('div', { class: 'row wrap', style: { marginTop: '14px', gap: '18px' } },
-      U.h('div', { class: 'field', style: { margin: 0 } }, U.h('label', { text: '周六几场' }), sat),
-      U.h('div', { class: 'field', style: { margin: 0 } }, U.h('label', { text: '周日几场' }), sun),
-      U.h('div', { class: 'field', style: { margin: 0 } }, U.h('label', { text: '法定节假日几场' }), hd)
+      U.h('div', { class: 'field', style: { margin: 0 } }, U.h('label', { text: '工作日几场（推荐 ' + REC.workCapacity + '）' }), work),
+      U.h('div', { class: 'field', style: { margin: 0 } }, U.h('label', { text: '周六几场（推荐 ' + REC.satCapacity + '）' }), sat),
+      U.h('div', { class: 'field', style: { margin: 0 } }, U.h('label', { text: '周日几场（推荐 ' + REC.sunCapacity + '）' }), sun),
+      U.h('div', { class: 'field', style: { margin: 0 } }, U.h('label', { text: '法定节假日几场（推荐 ' + REC.holidayCapacity + '）' }), hd),
+      U.h('div', { class: 'field', style: { margin: 0 } }, U.h('label', { text: '每天最多补几场（推荐 ' + REC.catchupExtra + '）' }), cp)
     ));
-    sch.appendChild(U.h('div', { class: 'small muted', style: { marginTop: '10px' },
-      text: '规则：工作日 1 场、周六 ' + (st.satCapacity || 3) + ' 场、周日 ' + (st.sunCapacity || 2) + ' 场、法定节假日 ' + (st.holidayCapacity || 3) + ' 场，' +
-        '当天全部做完才算完成。没做完的算欠账，只在周末和节假日最多额外补 ' + (st.catchupExtra === undefined ? 2 : st.catchupExtra) + ' 场。' }));
+
+    function refreshRule() {
+      var s2 = w.Store.settings();
+      var wc = Number(s2.workCapacity === undefined ? REC.workCapacity : s2.workCapacity);
+      var sc = Number(s2.satCapacity === undefined ? REC.satCapacity : s2.satCapacity);
+      var uc = Number(s2.sunCapacity === undefined ? REC.sunCapacity : s2.sunCapacity);
+      var hc = Number(s2.holidayCapacity === undefined ? REC.holidayCapacity : s2.holidayCapacity);
+      var cc = Number(s2.catchupExtra === undefined ? REC.catchupExtra : s2.catchupExtra);
+      ruleEl.textContent = '当天应完成：工作日 ' + wc + ' 场、周六 ' + sc + ' 场、周日 ' + uc +
+        ' 场、法定节假日 ' + hc + ' 场，当天全部做完才算完成。' +
+        '没做完的算欠账，' + (cc > 0 ? '每天（含工作日）最多再补 ' + cc + ' 场，' : '目前设为不补欠账，') +
+        '补练场次的题量略少，做完照样算完成。';
+    }
+    refreshRule();
+    sch.appendChild(ruleEl);
+    sch.appendChild(U.h('div', { class: 'small muted', style: { marginTop: '6px' },
+      text: '括号里是推荐值（原来的固定规则），可以按孩子的状态随时调；连续练到第 3 场会提醒休息。' }));
     sch.appendChild(U.h('div', { class: 'small muted', style: { marginTop: '6px' },
       text: '改完只影响之后新生成的任务；今天已经排好的，点下面「重排今日任务」才会按新场次重排。' }));
 
-    sch.appendChild(U.h('div', { class: 'row', style: { marginTop: '12px' } },
+    sch.appendChild(U.h('div', { class: 'row wrap', style: { marginTop: '12px' } },
       U.h('button', {
         class: 'btn btn-sm', text: '📆 编辑节假日表',
         onclick: function () { editHolidays(); }
@@ -631,6 +664,18 @@
       U.h('button', {
         class: 'btn btn-sm', text: '↺ 恢复内置表',
         onclick: function () { w.Schedule.saveCustom(null); U.toast('已恢复默认'); App.render(); }
+      }),
+      U.h('button', {
+        class: 'btn btn-sm', text: '🎯 场次恢复推荐值',
+        onclick: function () {
+          w.Store.saveSettings({
+            workCapacity: REC.workCapacity, satCapacity: REC.satCapacity,
+            sunCapacity: REC.sunCapacity, holidayCapacity: REC.holidayCapacity,
+            catchupExtra: REC.catchupExtra
+          });
+          U.toast('已恢复推荐场次', 'ok');
+          App.render();
+        }
       })
     ));
     view.appendChild(sch);

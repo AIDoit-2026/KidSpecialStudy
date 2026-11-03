@@ -93,7 +93,7 @@
     var st = w.Store.settings();
     var cfg = paceCfg();
     var target = w.Schedule.capacity(date, st);            // 当天应完成场次
-    var count = w.Schedule.plannedSessions(p, date, st);   // 目标 + 最多 2 场补欠账
+    var count = w.Schedule.plannedSessions(p, date, st);   // 目标 + 最多 catchupExtra 场补欠账
     var ywCur = { unit: p.yw.unit, node: p.yw.node };
     var sxCur = { unit: p.sx.unit, node: p.sx.node };
     var wCur = p.writingCursor || 0;
@@ -182,7 +182,7 @@
       p.yw.unit, p.yw.node, p.sx.unit, p.sx.node,
       p.writingCursor || 0, p.sessionsDone || 0,
       st.pace, st.charsPerDay, st.review ? 1 : 0, st.catchupWriting ? 1 : 0,
-      st.satCapacity, st.sunCapacity, st.holidayCapacity, st.catchupExtra].join('|');
+      st.workCapacity, st.satCapacity, st.sunCapacity, st.holidayCapacity, st.catchupExtra].join('|');
   }
 
   /* 预览某天会出什么题（只读，不写盘）
@@ -244,6 +244,91 @@
     if (Object.keys(PREVIEW_CACHE).length > 80) PREVIEW_CACHE = {};
     PREVIEW_CACHE[key] = out;
     return out;
+  }
+
+  /* ---- 连续练习提醒 ----
+     「连着练」= 相邻两场之间的空档不超过 BREAK_MIN 分钟。
+     连着练了 2 场，第 3 场开始前先提醒休息；真去歇够了的，空档变大，自动不再提醒。 */
+  var BREAK_MIN = 25;      // 两场之间歇超过 25 分钟，就不算连着练了
+  var REST_AFTER = 2;      // 连着练满几场后开始提醒
+
+  function ms(v) { return Number(v) || 0; }
+
+  /* 今天的连续练习情况：从最近完成的一场往前数 */
+  function streakInfo(date) {
+    date = date || U.today();
+    var day = w.Store.day(date);
+    var out = { count: 0, lastAt: 0, restAck: -1 };
+    if (!day || !day.plan) return out;
+    out.restAck = (day.restAck === undefined || day.restAck === null) ? -1 : Number(day.restAck);
+    var done = [];
+    day.plan.forEach(function (s) { if (s.status === 'done') done.push(s); });
+    if (!done.length) return out;
+    // 按开始时间排一下，防止孩子跳着场次做时把顺序算乱
+    done.sort(function (a, b) { return (ms(a.startedAt) || ms(a.finishedAt)) - (ms(b.startedAt) || ms(b.finishedAt)); });
+
+    var count = 1;
+    for (var i = done.length - 1; i > 0; i--) {
+      var nxt = done[i], prv = done[i - 1];
+      var from = ms(prv.finishedAt) || ms(prv.startedAt);
+      var to = ms(nxt.startedAt) || ms(nxt.finishedAt);
+      // 老记录没有时间戳时按「接着练的」算，宁可提醒一次
+      var gap = (from && to) ? Math.abs(to - from) : 0;
+      if (gap <= BREAK_MIN * 60000) count++;
+      else break;
+    }
+    out.count = count;
+    out.lastAt = ms(done[done.length - 1].finishedAt);
+    return out;
+  }
+
+  /* 进入第 slot 场之前要不要提醒休息 */
+  function shouldRest(date, slot) {
+    date = date || U.today();
+    slot = Number(slot) || 0;
+    if (slot < REST_AFTER) return false;                 // 前两场不打扰
+    var day = w.Store.day(date);
+    if (!day || !day.plan) return false;
+    if (Number(day.restAck) >= slot) return false;       // 这一场已经提醒过了
+    var s = day.plan[slot];
+    if (!s || s.status === 'done') return false;
+    return streakInfo(date).count >= REST_AFTER;
+  }
+
+  function ackRest(date, slot) {
+    var day = w.Store.day(date);
+    if (!day) return;
+    day.restAck = Number(slot) || 0;
+    w.Store.saveDay(date, day);
+  }
+
+  /* 提醒弹窗。resolve(true) = 接着练，false = 先去休息 */
+  function restGate(date, slot) {
+    return new Promise(function (resolve) {
+      var info = streakInfo(date);
+      var m = U.modal({
+        title: '⏰ 连着第 ' + (info.count + 1) + ' 场啦，先歇一会儿',
+        desc: '已经连着练了 ' + info.count + ' 场，眼睛和脖子该松一松了。' +
+          '看看窗外的远处，站起来喝口水，比硬撑着多做几题更有用。',
+        dismissable: false,
+        actions: [
+          {
+            label: '☕ 先休息一下', class: 'btn-ghost',
+            onClick: function () { ackRest(date, slot); m.close(); resolve(false); }
+          },
+          {
+            label: '我还想接着练', class: 'btn-primary',
+            onClick: function () { ackRest(date, slot); m.close(); resolve(true); }
+          }
+        ]
+      });
+    });
+  }
+
+  /* 需要拦截时返回 Promise，不需要时直接 resolve(true) */
+  function restGateIfNeeded(date, slot) {
+    if (!shouldRest(date, slot)) return Promise.resolve(true);
+    return restGate(date, slot);
   }
 
   function sessionItems(s) {
@@ -337,6 +422,8 @@
     buildPlan: buildPlan, ensure: ensure, rebuild: rebuild, preview: preview,
     sessionItems: sessionItems, canCheckin: canCheckin, completeSlot: completeSlot,
     summary: summary, writingCharsOf: writingCharsOf,
+    streakInfo: streakInfo, shouldRest: shouldRest, restGate: restGate, restGateIfNeeded: restGateIfNeeded,
+    BREAK_MIN: BREAK_MIN, REST_AFTER: REST_AFTER,
     maxCursor: maxCursor, consolidate: consolidate
   };
 })(window);
