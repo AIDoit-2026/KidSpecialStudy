@@ -192,6 +192,39 @@
       && AI.dimLabel('stroke', 'hanzi') === '笔画正确'
       && AI.dimLabel('stroke', null) === '写法正确');
 
+    section('数学：比较式填数');
+    var cmps = [];
+    Content.allNodes('math').forEach(function (n) {
+      n.items.forEach(function (i) { if (i.type === 'cmp') cmps.push(i); });
+    });
+    ok('比较式填数有题', cmps.length >= 5, cmps.length + ' 题');
+    ok('答案与算式一致', cmps.length > 0 && cmps.every(function (i) { return SXBuilder.checkIneq(i).ok; }),
+      cmps.filter(function (i) { return !SXBuilder.checkIneq(i).ok; }).map(function (i) { return i.id; }).join(','));
+    ok('数字都在 10 以内', cmps.every(function (i) {
+      var f = i.fig;
+      return [f.a, f.b, f.c].every(function (v) { return v === null || (v >= 0 && v <= SXBuilder.INEQ_MAX); });
+    }));
+    ok('刚好空一个数', cmps.every(function (i) {
+      return (i.fig.a === null) !== (i.fig.b === null);
+    }));
+    ok('挖第一个数、第二个数都有', cmps.some(function (i) { return i.fig.a === null; })
+      && cmps.some(function (i) { return i.fig.b === null; }));
+    ok('算式在右边也有', cmps.some(function (i) { return i.fig.side === 'rhs'; }));
+    ok('加法和减法都有', cmps.some(function (i) { return i.fig.op === '+'; })
+      && cmps.some(function (i) { return i.fig.op === '−'; }));
+    ok('求最大和求最小都有', cmps.some(function (i) { return i.fig.ask === 'max'; })
+      && cmps.some(function (i) { return i.fig.ask === 'min'; }));
+    /* 方向反了会无界（如「□ + 1 > 5 最大填几」），生成时应该直接拒绝 */
+    ok('无界组合出不了题', (function () {
+      try {
+        SXBuilder.TPL.ineq({ op: '+', a: null, b: 1, c: 5, cmp: '>', side: 'lhs', ask: 'max' });
+        return false;
+      } catch (e) { return true; }
+    })());
+    var cmpFig = App.pages.practice.renderFigure(cmps[0].fig);
+    ok('比较式渲染出三个方框', !!cmpFig && cmpFig.querySelectorAll('.fig-box').length === 3);
+    ok('空格画虚线、数字画实线', !!cmpFig && cmpFig.querySelectorAll('.fig-box.filled').length === 2);
+
     /* 练习页渲染（在做题之前） */
     try {
       history.replaceState(null, '', '#/practice?slot=0');

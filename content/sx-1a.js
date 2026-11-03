@@ -301,11 +301,9 @@
               stem: '小明有 4 颗糖，吃了 1 颗，又买了 2 颗，现在几颗？',
               answer: 5, unit: '颗', explain: '4 − 1 = 3，3 + 2 = 5 颗。'
             }),
-            M({
-              skill: '5以内.综合', level: 2,
-              stem: '下面哪个算式得数最大？',
-              options: ['2 + 2', '5 − 2', '1 + 2'], answer: 0,
-              explain: '2+2=4，5−2=3，1+2=3，最大是 4。'
+            TPL.ineq({
+              op: '+', a: null, b: 1, c: 5, cmp: '<', side: 'lhs', ask: 'max',
+              level: 2, skill: '5以内.比较式填数'
             })
           ]
         }
@@ -417,10 +415,9 @@
               fig: { type: 'eq', a: 3, b: 4, op: '+', blank: 'result' },
               answer: 7, unit: '', explain: '3 + 4 = 7。'
             }),
-            M({
-              skill: '10以内.6和7的加减', level: 3,
-              stem: '篮子里有 6 个鸡蛋，又放进 1 个，一共几个？',
-              answer: 7, unit: '个', explain: '6 + 1 = 7。'
+            TPL.ineq({
+              op: '+', a: null, b: 2, c: 6, cmp: '>', side: 'lhs', ask: 'min',
+              level: 3, skill: '10以内.比较式填数'
             })
           ]
         },
@@ -502,10 +499,9 @@
               fig: { type: 'objects', icon: '⛵', groups: [9, -4] },
               answer: 5, unit: '只', explain: '9 − 4 = 5 只。'
             }),
-            M({
-              skill: '10以内.8和9的加减', level: 3,
-              stem: '小美有 8 张画片，送给同学 2 张，还剩几张？',
-              answer: 6, unit: '张', explain: '8 − 2 = 6 张。'
+            TPL.ineq({
+              op: '+', a: null, b: 4, c: 9, cmp: '<', side: 'rhs', ask: 'min',
+              level: 3, skill: '10以内.比较式填数'
             })
           ]
         },
@@ -591,10 +587,9 @@
               fig: { type: 'objects', icon: '🐦', groups: [10, -6, 2] },
               answer: 6, unit: '只', explain: '10 − 6 = 4，4 + 2 = 6 只。'
             }),
-            M({
-              skill: '10以内.10的加减', level: 3,
-              stem: '小明有 10 元，买笔用 3 元，买本子用 4 元，还剩几元？',
-              answer: 3, unit: '元', explain: '3 + 4 = 7，10 − 7 = 3 元。'
+            TPL.ineq({
+              op: '-', a: 10, b: null, c: 3, cmp: '>', side: 'lhs', ask: 'max',
+              level: 3, skill: '10以内.比较式填数'
             })
           ]
         },
@@ -646,10 +641,9 @@
               stem: '一盒彩笔有 10 支，用坏了 2 支，又丢了 1 支，还能用几支？',
               answer: 7, unit: '支', explain: '10 − 2 − 1 = 7 支。'
             }),
-            M({
-              skill: '10以内.综合', level: 3,
-              stem: '小华有 5 本书，小丽比小华多 4 本，小丽有几本？',
-              answer: 9, unit: '本', explain: '5 + 4 = 9 本。'
+            TPL.ineq({
+              op: '-', a: 10, b: null, c: 7, cmp: '>', side: 'rhs', ask: 'min',
+              level: 3, skill: '10以内.比较式填数'
             }),
             M({
               skill: '10以内.综合', level: 3,

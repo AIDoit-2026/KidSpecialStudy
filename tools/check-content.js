@@ -71,6 +71,35 @@ summary.forEach(s => {
 });
 console.log(`合计：${grand.nodes} 节点 / ${grand.items} 题`);
 
+console.log('\n=== 比较式填数（□ + 2 < 5） ===');
+let cmpN = 0, cmpBad = 0, cmpRange = 0;
+const cover = { 加: 0, 减: 0, 挖第一个数: 0, 挖第二个数: 0, 算式在左: 0, 算式在右: 0, 求最大: 0, 求最小: 0 };
+['sx-1a', 'sx-1b'].forEach(bid => {
+  const b = ctx.CONTENT[bid];
+  if (!b) return;
+  b.units.forEach(u => u.nodes.forEach(n => n.items.forEach(it => {
+    if (!it.fig || it.fig.type !== 'cmp') return;
+    cmpN++;
+    const chk = ctx.SXBuilder.checkIneq(it);
+    if (!chk.ok) { cmpBad++; err(`${it.id} ${it.stem} → ${chk.msg}`); }
+    const f = it.fig;
+    [f.a, f.b, f.c].forEach(v => {
+      if (v !== null && v !== undefined && (v < 0 || v > ctx.SXBuilder.INEQ_MAX)) {
+        cmpRange++;
+        err(`${it.id} 数值超出 10 以内：${v}`);
+      }
+    });
+    if ((f.a === null) === (f.b === null)) err(`${it.id} 空格数量不对`);
+    if (['<', '>'].indexOf(f.cmp) < 0) err(`${it.id} 比较符异常：${f.cmp}`);
+    cover[f.op === '+' ? '加' : '减']++;
+    cover[f.a === null ? '挖第一个数' : '挖第二个数']++;
+    cover[f.side === 'rhs' ? '算式在右' : '算式在左']++;
+    cover[f.ask === 'max' ? '求最大' : '求最小']++;
+  })));
+});
+console.log(`共 ${cmpN} 题，答案错 ${cmpBad} 处，超范围 ${cmpRange} 处`);
+console.log('覆盖：' + Object.keys(cover).map(k => k + ' ' + cover[k]).join(' / '));
+
 console.log('\n=== 抽样 ===');
 const sample = ctx.CONTENT['yw-1b'].units[0].nodes[0].items.slice(0, 2)
   .concat(ctx.CONTENT['sx-1b'].units[1].nodes[0].items.slice(0, 2));

@@ -62,6 +62,12 @@
         var it = w.Content.item(r.itemId);
         var row = U.h('div', { class: 'mistake-item' });
         row.appendChild(U.h('div', { class: 'mi-stem', text: it ? it.stem : (r.stem || r.itemId) }));
+        /* 带图的题（看图列式、比较式填数）在错题本里也要能看清原题 */
+        var figFn = App.pages.practice && App.pages.practice.renderFigure;
+        if (it && it.fig && figFn) {
+          var fig = figFn(it.fig);
+          if (fig) { fig.classList.add('mi-fig'); row.appendChild(fig); }
+        }
         var meta = '错了 ' + (r.wrongCount || 1) + ' 次　·　第 ' + (r.box || 1) + ' 轮复习';
         if (r.dueDate) meta += '　·　' + (r.dueDate <= U.today() ? '今天就该复习' : U.fmtCn(r.dueDate) + ' 复习');
         row.appendChild(U.h('div', { class: 'mi-meta', text: meta }));

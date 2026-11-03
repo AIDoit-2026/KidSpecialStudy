@@ -99,6 +99,26 @@
       wrap.appendChild(U.h('span', { class: 'fig-box', text: String(fig.b) }));
       wrap.appendChild(U.h('span', { class: 'fig-eq', text: '=' }));
       wrap.appendChild(U.h('span', { class: 'fig-box', text: fig.blank === 'result' ? '' : String(fig.c || '') }));
+    } else if (fig.type === 'cmp') {
+      /* 比较式填数：□ + 2 < 5 / 9 > □ + 4。空格画成虚线框，其余是实线框 */
+      var blank = function (v) { return v === null || v === undefined; };
+      var cmpBox = function (v) {
+        return U.h('span', { class: 'fig-box' + (blank(v) ? '' : ' filled'), text: blank(v) ? '' : String(v) });
+      };
+      var cmpExpr = function () {
+        wrap.appendChild(cmpBox(fig.a));
+        wrap.appendChild(U.h('span', { class: 'fig-eq', text: fig.op }));
+        wrap.appendChild(cmpBox(fig.b));
+      };
+      if (fig.side === 'rhs') {
+        wrap.appendChild(cmpBox(fig.c));
+        wrap.appendChild(U.h('span', { class: 'fig-eq', text: fig.cmp }));
+        cmpExpr();
+      } else {
+        cmpExpr();
+        wrap.appendChild(U.h('span', { class: 'fig-eq', text: fig.cmp }));
+        wrap.appendChild(cmpBox(fig.c));
+      }
     } else if (fig.type === 'blocks') {
       var area = U.h('div', { style: { display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' } });
       (fig.layout || []).forEach(function (n) {

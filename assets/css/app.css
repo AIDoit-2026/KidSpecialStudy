@@ -461,6 +461,12 @@ textarea.input{min-height:84px;resize:vertical}
 .mistake-item{padding:10px 0;border-bottom:1px dashed #F2E7ED;font-size:14px}
 .mistake-item:last-child{border-bottom:none}
 .mistake-item .mi-stem{font-weight:600}
+/* 错题本里的图示缩一号，别把列表撑太长 */
+.mistake-item .mi-fig{margin:8px 0 2px;gap:8px}
+.mistake-item .mi-fig .fig-box{min-width:34px;height:34px;font-size:16px;border-width:2px;border-radius:8px}
+.mistake-item .mi-fig .fig-eq{font-size:16px}
+.mistake-item .mi-fig .fig-icon{font-size:22px}
+.mistake-item .mi-fig .fig-tenframe{transform:scale(.7);transform-origin:left center}
 .mistake-item .mi-meta{font-size:12px;color:var(--muted);margin-top:3px}
 
 /* ---------- 家长中心 ---------- */
