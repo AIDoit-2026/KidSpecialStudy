@@ -197,12 +197,12 @@
     Content.allNodes('math').forEach(function (n) {
       n.items.forEach(function (i) { if (i.type === 'cmp') cmps.push(i); });
     });
-    ok('比较式填数有题', cmps.length >= 5, cmps.length + ' 题');
+    ok('比较式填数有题', cmps.length >= 40, cmps.length + ' 题（一上）');
     ok('答案与算式一致', cmps.length > 0 && cmps.every(function (i) { return SXBuilder.checkIneq(i).ok; }),
       cmps.filter(function (i) { return !SXBuilder.checkIneq(i).ok; }).map(function (i) { return i.id; }).join(','));
-    ok('数字都在 10 以内', cmps.every(function (i) {
-      var f = i.fig;
-      return [f.a, f.b, f.c].every(function (v) { return v === null || (v >= 0 && v <= SXBuilder.INEQ_MAX); });
+    ok('数值都在本题范围内', cmps.every(function (i) {
+      var f = i.fig, top = f.max || SXBuilder.INEQ_MAX;
+      return [f.a, f.b, f.c].every(function (v) { return v === null || (v >= 0 && v <= top); });
     }));
     ok('刚好空一个数', cmps.every(function (i) {
       return (i.fig.a === null) !== (i.fig.b === null);
@@ -214,6 +214,37 @@
       && cmps.some(function (i) { return i.fig.op === '−'; }));
     ok('求最大和求最小都有', cmps.some(function (i) { return i.fig.ask === 'max'; })
       && cmps.some(function (i) { return i.fig.ask === 'min'; }));
+
+    /* 铺开：一上从「加法」那一课起、一下每个练习都有，每次 1~3 道 */
+    function cmpPerNode(bid) {
+      var out = [];
+      Content.book(bid).units.forEach(function (u) {
+        u.nodes.forEach(function (n) {
+          out.push({
+            key: u.id + '/' + n.id,
+            c: n.items.filter(function (i) { return i.type === 'cmp'; }).length
+          });
+        });
+      });
+      return out;
+    }
+    var covA = cmpPerNode('sx-1a'), covB = cmpPerNode('sx-1b');
+    ok('数学一下每个练习都有 1~3 道', covB.every(function (x) { return x.c >= 1 && x.c <= 3; }),
+      covB.filter(function (x) { return x.c < 1 || x.c > 3; }).map(function (x) { return x.key; }).join(','));
+    ok('数学一上没有的只在准备课和 5 以内前 4 课', covA.filter(function (x) { return !x.c; }).length === 6,
+      '空节点 ' + covA.filter(function (x) { return !x.c; }).map(function (x) { return x.key; }).join(','));
+    ok('每个节点最多 3 道', covA.concat(covB).every(function (x) { return x.c <= 3; }));
+    ok('每场练习的数学题都会带上这类题', (function () {
+      var bad = [];
+      Content.allNodes('math').forEach(function (n) {
+        var want = n.items.filter(function (i) { return i.type === 'cmp'; }).length;
+        var ids = Task.pickMath(n.items, 5);
+        var got = ids.filter(function (id) { var it = Content.item(id); return it && it.type === 'cmp'; }).length;
+        if (got !== Math.min(want, 3)) bad.push(n.title);
+        if (ids.length - got !== 5) bad.push(n.title + '(常规题不是 5 道)');
+      });
+      return bad.length === 0;
+    })());
     /* 方向反了会无界（如「□ + 1 > 5 最大填几」），生成时应该直接拒绝 */
     ok('无界组合出不了题', (function () {
       try {

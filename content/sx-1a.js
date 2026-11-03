@@ -301,6 +301,11 @@
               stem: '小明有 4 颗糖，吃了 1 颗，又买了 2 颗，现在几颗？',
               answer: 5, unit: '颗', explain: '4 − 1 = 3，3 + 2 = 5 颗。'
             }),
+            M({
+              skill: '5以内.综合', level: 2,
+              stem: '小红有 3 本书，小亮比小红多 2 本，小亮有几本？',
+              answer: 5, unit: '本', explain: '比小红多 2 本，就是 3 + 2 = 5 本。'
+            }),
             TPL.ineq({
               op: '+', a: null, b: 1, c: 5, cmp: '<', side: 'lhs', ask: 'max',
               level: 2, skill: '5以内.比较式填数'
@@ -415,6 +420,11 @@
               fig: { type: 'eq', a: 3, b: 4, op: '+', blank: 'result' },
               answer: 7, unit: '', explain: '3 + 4 = 7。'
             }),
+            M({
+              skill: '10以内.6和7的加减', level: 2,
+              stem: '小红有 6 朵花，小丽比小红少 2 朵，小丽有几朵？',
+              answer: 4, unit: '朵', explain: '比小红少 2 朵，就是 6 − 2 = 4 朵。'
+            }),
             TPL.ineq({
               op: '+', a: null, b: 2, c: 6, cmp: '>', side: 'lhs', ask: 'min',
               level: 3, skill: '10以内.比较式填数'
@@ -498,6 +508,11 @@
               stem: '看图列式，还剩几只小船？',
               fig: { type: 'objects', icon: '⛵', groups: [9, -4] },
               answer: 5, unit: '只', explain: '9 − 4 = 5 只。'
+            }),
+            M({
+              skill: '10以内.8和9的加减', level: 3,
+              stem: '树上有 9 只小鸟，飞走 4 只，又飞走 2 只，还剩几只？',
+              answer: 3, unit: '只', explain: '9 − 4 = 5，5 − 2 = 3 只。'
             }),
             TPL.ineq({
               op: '+', a: null, b: 4, c: 9, cmp: '<', side: 'rhs', ask: 'min',
@@ -587,6 +602,11 @@
               fig: { type: 'objects', icon: '🐦', groups: [10, -6, 2] },
               answer: 6, unit: '只', explain: '10 − 6 = 4，4 + 2 = 6 只。'
             }),
+            M({
+              skill: '10以内.10的加减', level: 2,
+              stem: '有 10 个座位，坐了 8 个人，还空几个？',
+              answer: 2, unit: '个', explain: '10 − 8 = 2 个。'
+            }),
             TPL.ineq({
               op: '-', a: 10, b: null, c: 3, cmp: '>', side: 'lhs', ask: 'max',
               level: 3, skill: '10以内.比较式填数'
@@ -649,6 +669,11 @@
               skill: '10以内.综合', level: 3,
               stem: '排队时小明前面有 4 人，后面有 5 人，这一队共几人？',
               answer: 10, unit: '人', explain: '4 + 5 + 1（小明）= 10 人。'
+            }),
+            M({
+              skill: '10以内.综合', level: 2,
+              stem: '小猫钓了 9 条鱼，小狗钓了 5 条，小猫比小狗多几条？',
+              answer: 4, unit: '条', explain: '9 − 5 = 4 条。'
             })
           ]
         }
@@ -1355,6 +1380,19 @@
     }
   ];
 
+
+  /* 比较式填数：跟着教材进度铺到每个练习，每次 1~3 道
+     · 5 以内从「加法」那一课开始（前面还没学加减，出不了这种题）
+     · 6~10 用 10 以内，11~20 与进位加法用 20 以内
+     · 图形、复习这些不按课时铺满的单元只给 1 道保温 */
+  w.SXBuilder.decorate(UNITS, [
+    { unit: 'u1', tier: 'w5', base: 2, from: 4 },
+    { unit: 'u2', tier: 'w10', base: 2 },
+    { unit: 'u3', tier: 'w10', base: 1 },
+    { unit: 'u4', tier: 'w20', base: 2 },
+    { unit: 'u5', tier: 'w20', base: 2 },
+    { unit: 'u6', tier: 'w20', base: 3 }
+  ]);
 
   w.CONTENT = w.CONTENT || {};
   w.CONTENT['sx-1a'] = w.SXBuilder.build(UNITS, {

@@ -1414,6 +1414,21 @@
     }
   ];
 
+  /* 比较式填数：同样每次 1~3 道
+     · 图形、分类、人民币这些课只给 1 道保温，20 以内为限
+     · 100 以内数的认识还没学两位数加减，仍用 20 以内
+     · 到了「100 以内的加减法」再放开到 100 以内，先一位数、再两位数 */
+  w.SXBuilder.decorate(UNITS, [
+    { unit: 'u1', tier: 'w20', base: 1 },
+    { unit: 'u2', tier: 'w20', base: 2 },
+    { unit: 'u3', tier: 'w20', base: 1 },
+    { unit: 'u4', tier: 'w20', base: 2 },
+    { unit: 'u5', tier: 'w20', base: 1 },
+    { unit: 'u6', tier: 'w100e', base: 2 },
+    { unit: 'u7', tier: 'w100', base: 1 },
+    { unit: 'u8', tier: 'w100', base: 3 }
+  ]);
+
   w.CONTENT = w.CONTENT || {};
   w.CONTENT['sx-1b'] = w.SXBuilder.build(UNITS, {
     bookId: 'sx-1b', code: 'sx1b', name: '数学 · 一年级下册', stage: '一下'

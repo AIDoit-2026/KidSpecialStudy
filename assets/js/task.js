@@ -26,6 +26,37 @@
     return out;
   }
 
+  /* 数学内容全走完后是从全册抽巩固题，随机抽不一定抽到比较式填数，
+     这里兜一下：没有就补一道，保证每个练习都练到 */
+  function ensureCmp(ids, date, slot) {
+    var has = false;
+    ids.forEach(function (id) { var it = w.Content.item(id); if (it && it.type === 'cmp') has = true; });
+    if (has) return ids;
+    var pool = [];
+    w.Content.allNodes('math').forEach(function (node) {
+      node.items.forEach(function (it) { if (it.type === 'cmp') pool.push(it.id); });
+    });
+    if (!pool.length) return ids;
+    var s = date + '#' + slot, h = 7;
+    for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % 99991;
+    return ids.concat([pool[h % pool.length]]);
+  }
+
+  /* 数学题挑选：常规题按原顺序取 n 道，再把本节点的「比较式填数」带上（1~3 道），
+     插在中间，先热身再上要反着想的。末尾留一道常规题，错题复习替换时不会把它顶掉。 */
+  function pickMath(items, n) {
+    var base = [], cmp = [];
+    items.forEach(function (it) {
+      if (it.type === 'cmp') cmp.push(it.id);
+      else if (it.module === 'math') base.push(it.id);
+    });
+    var out = base.slice(0, n);
+    cmp.slice(0, 3).forEach(function (id, i) {
+      out.splice(Math.min(1 + i * 2, Math.max(0, out.length - 1)), 0, id);
+    });
+    return out;
+  }
+
   /* 内容用尽后的巩固题：优先错题，其次从已学节点抽 */
   function consolidate(module, n, upto) {
     var out = [];
@@ -107,7 +138,7 @@
 
       var chars = ywNode ? takeModule(ywNode.items, 'chars', cfg.chars) : consolidate('chars', cfg.chars, null);
       var pinyin = ywNode ? takeModule(ywNode.items, 'pinyin', cfg.pinyin) : consolidate('pinyin', cfg.pinyin, null);
-      var math = sxNode ? takeModule(sxNode.items, 'math', cfg.math) : consolidate('math', cfg.math, null);
+      var math = sxNode ? pickMath(sxNode.items, cfg.math) : ensureCmp(consolidate('math', cfg.math, null), date, i);
 
       // 插错题复习（数学 2 题、语文各 1 题）
       injectReview(math, 'math', 2);
@@ -153,13 +184,26 @@
     return sessions;
   }
 
+  /* 计划结构版本：题型/题量改过就 +1，还没开始做的旧计划会自动重排，
+     免得改完当天打开看到的还是老样子 */
+  var PLAN_VERSION = 2;
+
+  function touched(day) {
+    return (day.plan || []).some(function (s) {
+      return s.status === 'done' || s.startedAt || Object.keys(s.answers || {}).length;
+    });
+  }
+
   /* 确保今天的计划已生成 */
   function ensure(date) {
     date = date || U.today();
     var day = w.Store.day(date);
-    if (day && day.plan && day.plan.length) return day;
+    if (day && day.plan && day.plan.length) {
+      if (day.planVersion !== PLAN_VERSION && !touched(day)) return rebuild(date);
+      return day;
+    }
     var plan = buildPlan(date);
-    day = w.Store.saveDay(date, { plan: plan, done: false, startedAt: null });
+    day = w.Store.saveDay(date, { plan: plan, done: false, startedAt: null, planVersion: PLAN_VERSION });
     return day;
   }
 
@@ -167,7 +211,7 @@
   function rebuild(date) {
     date = date || U.today();
     var plan = buildPlan(date);
-    return w.Store.saveDay(date, { plan: plan, done: false, startedAt: null });
+    return w.Store.saveDay(date, { plan: plan, done: false, startedAt: null, planVersion: PLAN_VERSION });
   }
 
   /* 预览缓存：同一天在同一次查看里反复进出（列表 ↔ 详情 ↔ 翻场次）要看到同一份题，
@@ -420,6 +464,7 @@
   w.Task = {
     PACE: PACE, paceCfg: paceCfg,
     buildPlan: buildPlan, ensure: ensure, rebuild: rebuild, preview: preview,
+    pickMath: pickMath,
     sessionItems: sessionItems, canCheckin: canCheckin, completeSlot: completeSlot,
     summary: summary, writingCharsOf: writingCharsOf,
     streakInfo: streakInfo, shouldRest: shouldRest, restGate: restGate, restGateIfNeeded: restGateIfNeeded,

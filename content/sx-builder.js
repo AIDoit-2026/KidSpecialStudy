@@ -57,6 +57,151 @@
     return { answer: first };
   }
 
+  /* ---------------- 按节点批量铺开 ----------------
+     跟着教材进度，把「比较式填数」铺到每个练习里（每次 1~3 道）：
+     5 以内 → 10 以内 → 20 以内 → 100 以内。
+     同一节点用固定种子生成，预览、打印、错题本看到的永远是同一批题。 */
+  var TIERS = {
+    w5: { max: 5, ops: ['+'], numMax: 4, minC: 2, minAns: 1, minOther: 1, level: 2, skill: '5以内.比较式填数' },
+    w10: { max: 10, ops: ['+', '-'], numMax: 8, minC: 3, minAns: 2, minOther: 1, level: 2, skill: '10以内.比较式填数' },
+    w20: { max: 20, ops: ['+', '-'], numMax: 14, minC: 5, minAns: 3, minOther: 2, level: 3, skill: '20以内.比较式填数' },
+    /* 100 以内刚起步：另一个数只取一位数，算的都是「两位数 ± 一位数」 */
+    w100e: { max: 100, ops: ['+', '-'], numMax: 9, minC: 20, minAns: 10, minOther: 2, level: 3, skill: '100以内.比较式填数' },
+    w100: { max: 100, ops: ['+', '-'], numMax: 20, minC: 20, minAns: 10, minOther: 2, level: 3, skill: '100以内.比较式填数' }
+  };
+
+  /* 定长种子随机：同一个 seed 永远给出同一串题 */
+  function rng(seed) {
+    var h = 2166136261 >>> 0;
+    for (var i = 0; i < seed.length; i++) { h ^= seed.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; }
+    return function () {
+      h = (h + 0x6D2B79F5) >>> 0;
+      var t = h;
+      t = Math.imul(t ^ (t >>> 15), t | 1) >>> 0;
+      t = (t ^ (t + Math.imul(t ^ (t >>> 7), t | 61))) >>> 0;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  function randInt(rnd, lo, hi) { return lo + Math.floor(rnd() * (hi - lo + 1)); }
+
+  /* 生成一道合法的比较式填数：先定答案和另一个数，再反推比较的那个数 c
+     opts 可以把某一维钉死（用来让每次练习的第一道先出最常规的「左式 · 求最大」） */
+  function genIneq(tier, rnd, avoid, opts) {
+    opts = opts || {};
+    var M = tier.max;
+    for (var t = 0; t < 160; t++) {
+      var op = tier.ops[randInt(rnd, 0, tier.ops.length - 1)];
+      var blank = rnd() < 0.5 ? 'a' : 'b';
+      var side = opts.side || (rnd() < 0.5 ? 'lhs' : 'rhs');
+      var ask = opts.ask || (rnd() < 0.5 ? 'max' : 'min');
+      /* 求「最小」时答案至少 2，孩子得先试 0 和 1 才会排除，不至于变成送分题 */
+      var lo = Math.max(tier.minAns || 1, ask === 'min' ? 2 : 1);
+      var ans = randInt(rnd, lo, Math.max(lo, M - 2));
+      var a, b, other, v;
+
+      if (op === '+') {
+        var room = M - ans;
+        if (room < 1) continue;
+        other = randInt(rnd, tier.minOther, Math.min(tier.numMax, room));
+        v = ans + other;
+        if (blank === 'a') { a = null; b = other; } else { a = other; b = null; }
+      } else if (blank === 'a') {
+        if (ans < 2) continue;
+        other = randInt(rnd, tier.minOther, Math.min(tier.numMax, ans - 1));
+        v = ans - other; a = null; b = other;
+      } else {
+        if (ans >= M) continue;
+        other = randInt(rnd, ans + 1, Math.min(M, ans + tier.numMax));
+        v = other - ans; a = other; b = null;
+      }
+
+      /* 得数随 x 变大（加、或减第一个数）时，问最大要「<」；变小（减第二个数）时反过来 */
+      var up = (op === '+' || blank === 'a');
+      var rel = ask === 'max' ? '<' : '>';
+      var c = (up === (ask === 'max')) ? v + 1 : v - 1;
+      if (c < (tier.minC || 1) || c > M) continue;
+
+      var p = { op: op, a: a, b: b, c: c, side: side, ask: ask, max: M,
+        cmp: side === 'lhs' ? rel : OPP[rel] };
+      var r = solveIneq(p);
+      if (!r || r.answer !== ans) continue;          // 答案不唯一或不闭合，换一组
+      var sig = sigOf(p);
+      if (avoid.indexOf(sig) >= 0) continue;
+      avoid.push(sig);
+      return p;
+    }
+    return null;
+  }
+
+  /* 题目指纹：用来跨节点去重，别让孩子连着两天做同一道 */
+  function sigOf(p) {
+    return [p.op, p.a, p.b, p.c, p.cmp, p.side, p.ask].join(' ');
+  }
+
+  /* 给一个节点生成 count 道；生成不出来就少给几道，不抛错
+     o.avoid 传同一个数组就能跨节点去重（decorate 里按册共用） */
+  function ineqPack(o) {
+    var tier = TIERS[o.tier] || TIERS.w10;
+    var rnd = rng(o.seed || 'ineq');
+    var out = [], avoid = o.avoid || [], ops = [];
+    var total = o.count || 2;
+    for (var i = 0; i < total; i++) {
+      /* 一次练 2 道以上时，第一道先出最常规的「左式 · 求最大」，后面再上反着想的 */
+      var opt = (i === 0 && total > 1) ? { side: 'lhs', ask: 'max' } : {};
+      var p = genIneq(tier, rnd, avoid, opt);
+      if (!p) continue;
+      /* 尽量别连着两道同一种运算，孩子的体感会好一些 */
+      if (ops.length && ops[ops.length - 1] === p.op && tier.ops.length > 1) {
+        var p2 = genIneq(tier, rnd, avoid, opt);
+        if (p2) p = p2;
+      }
+      ops.push(p.op);
+      p.level = tier.level;
+      p.skill = tier.skill;
+      out.push(TPL.ineq(p));
+    }
+    return out;
+  }
+
+  /* 按「单元」批量铺：rules = [{unit:'u2', tier:'w10', base:2, from:0}, ...]
+     节点题量：第一个节点 base-1，整理复习类 base+1，其余 base（都在 1~3 之间） */
+  function decorate(units, rules) {
+    /* 同一个数组按册共用：手写题 + 生成题一起去重，避免跨节点出同一道 */
+    var used = [];
+    units.forEach(function (u) {
+      u.nodes.forEach(function (n) {
+        n.items.forEach(function (it) {
+          if (it.type !== 'cmp' || !it.fig) return;
+          used.push(sigOf({
+            op: it.fig.op === '−' ? '-' : it.fig.op, a: it.fig.a, b: it.fig.b,
+            c: it.fig.c, cmp: it.fig.cmp, side: it.fig.side, ask: it.fig.ask
+          }));
+        });
+      });
+    });
+
+    (rules || []).forEach(function (r) {
+      var u = null;
+      for (var i = 0; i < units.length; i++) if (units[i].id === r.unit) { u = units[i]; break; }
+      if (!u) return;
+      var base = r.base || 2;
+      u.nodes.forEach(function (n, ni) {
+        if (ni < (r.from || 0)) return;
+        var want = ni === (r.from || 0) ? Math.max(1, base - 1) : base;
+        if (/整理和复习|单元复习|总复习|复习$/.test(n.lesson)) want = Math.min(3, base + 1);
+        var have = n.items.filter(function (it) { return it.type === 'cmp'; }).length;
+        want = Math.min(3, want);
+        var need = want - have;
+        if (need > 0) {
+          n.items = n.items.concat(ineqPack({
+            tier: r.tier, count: need, seed: 'sx-' + u.id + '-' + n.id, avoid: used
+          }));
+        }
+        n.ineq = n.items.filter(function (it) { return it.type === 'cmp'; }).length;
+      });
+    });
+  }
+
   /* 变式模板：数值、情境可换，答案自动计算 */
   var TPL = {
     add: function (p) {
@@ -168,7 +313,8 @@
           type: 'cmp', op: shown,
           a: blankA ? null : p.a,
           b: (p.b === null || p.b === undefined) ? null : p.b,
-          c: p.c, cmp: p.cmp, side: p.side || 'lhs', ask: p.ask
+          c: p.c, cmp: p.cmp, side: p.side || 'lhs', ask: p.ask,
+          max: p.max || INEQ_MAX                        // 本题的数域上限（自检用）
         },
         answer: ans, unit: '',
         explain: '填 ' + ans + '：' + expr(ans) + ' = ' + v1 + '，' + chain(v1) + '；' +
@@ -205,7 +351,8 @@
         });
         unit.nodes.push({
           id: n.id, index: ni, title: n.lesson + ' · ' + n.title,
-          lesson: n.lesson, estimatedMin: 30, items: items
+          lesson: n.lesson, estimatedMin: 30, items: items,
+          ineq: n.ineq                                   // 本节点应带的比较式填数题数
         });
       });
       content.units.push(unit);
@@ -224,7 +371,7 @@
     if ((f.a === null) === (f.b === null)) return { ok: false, msg: '空格数量不对' };
     var p = {
       op: f.op === '−' ? '-' : f.op, a: f.a, b: f.b, c: f.c,
-      cmp: f.cmp, side: f.side, ask: f.ask
+      cmp: f.cmp, side: f.side, ask: f.ask, max: f.max || INEQ_MAX
     };
     var r = solveIneq(p);
     if (!r) return { ok: false, msg: '没有唯一答案' };
@@ -234,5 +381,8 @@
     return { ok: true, msg: '' };
   }
 
-  w.SXBuilder = { build: build, M: M, TPL: TPL, solveIneq: solveIneq, checkIneq: checkIneq, INEQ_MAX: INEQ_MAX };
+  w.SXBuilder = {
+    build: build, M: M, TPL: TPL, solveIneq: solveIneq, checkIneq: checkIneq,
+    INEQ_MAX: INEQ_MAX, TIERS: TIERS, ineqPack: ineqPack, decorate: decorate
+  };
 })(window);
