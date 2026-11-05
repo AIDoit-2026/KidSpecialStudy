@@ -82,8 +82,8 @@ summary.forEach(s => {
 console.log(`合计：${grand.nodes} 节点 / ${grand.items} 题`);
 
 console.log('\n=== 送分题下架检查 ===');
-const BANNED_STEM = /一共有几笔|可以组成下面哪个词|是第几声？|是声母还是韵母|是什么结构的字/;
-const BANNED_SKILL = /^认字\.(数笔画|选组词|字形结构)$|^拼音\.(声调|声母辨认|韵母辨认|字母分类)$/;
+const BANNED_STEM = /一共有几笔|可以组成下面哪个词|是第几声？|是声母还是韵母|是什么结构的字|的偏旁是哪个/;
+const BANNED_SKILL = /^认字\.(数笔画|选组词|字形结构|选偏旁)$|^拼音\.(声调|声母辨认|韵母辨认|字母分类)$/;
 const WANT_ITEMS = { 'yw-1a': 781, 'yw-1b': 737, 'sx-1a': 296, 'sx-1b': 306 };
 BOOKS.forEach(bid => {
   const b = ctx.CONTENT[bid];
@@ -95,7 +95,30 @@ BOOKS.forEach(bid => {
   if (bad) err(`${CN[bid]} 还留着 ${bad} 道已下架的送分题`);
   if (b.itemCount !== WANT_ITEMS[bid]) err(`${CN[bid]} 题量 ${b.itemCount}（应 ${WANT_ITEMS[bid]}）`);
 });
-console.log('五类送分题：数笔画 / 选组词 / 读第几声 / 声母韵母分类 / 字形结构 → 应为 0；四册题量应保持不变');
+console.log('六类送分题：数笔画 / 选组词 / 读第几声 / 声母韵母分类 / 字形结构 / 问偏旁 → 应为 0；四册题量应保持不变');
+
+console.log('\n=== 选字填空（补位题型） ===');
+['yw-1a', 'yw-1b'].forEach(bid => {
+  const b = ctx.CONTENT[bid];
+  let n = 0, bad = 0;
+  b.units.forEach(u => u.nodes.forEach(nd => nd.items.forEach(it => {
+    if (it.skill !== '认字.选字填空') return;
+    n++;
+    const blank = (it.stem || '').replace('选字填空：', '');
+    if (blank.indexOf('（　）') < 0) { bad++; return; }
+    // 干扰项填回去不能成词，否则一道题有两个正确答案
+    (it.options || []).forEach((o, k) => {
+      if (k === it.answer) return;
+      const alt = blank.replace('（　）', o);
+      const rec = ctx.CHARS[o];
+      if (rec && (rec.w || []).some(x => x === alt)) bad++;
+    });
+    if (!it.audio) bad++;
+  })));
+  if (n < 10) err(`${CN[bid]} 选字填空只有 ${n} 道，补位不足`);
+  if (bad) err(`${CN[bid]} 选字填空有 ${bad} 处答案不唯一或格式异常`);
+  console.log(`  ${CN[bid]}：${n} 道，答案唯一性 ${bad ? '✗' : '✓'}`);
+});
 
 console.log('\n=== 比较式填数（□ + 2 < 5） ===');
 let cmpN = 0, cmpBad = 0, cmpRange = 0;

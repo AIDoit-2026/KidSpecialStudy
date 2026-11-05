@@ -11,6 +11,20 @@
     plus: { total: 35, mix: { chars: 9, pinyin: 11, math: 15 }, writing: 5, min: 40, label: '加量（约 40 分钟 · 35 题）' }
   };
 
+  /* 已下架的题型 + 每场限流：
+     · 问偏旁的题整类下架（题库里已换成「选字填空」，这里兼容旧计划里的残留 id）
+     · 「第一笔 / 第 N 笔 / 最后一笔」是同一类太简单的笔顺题，一场合计最多 1 道
+     少出来的题位不丢，全数转给数学计算题，每场总题量仍是 18 / 25 / 35。 */
+  var BANNED_CHAR_SKILL = /^认字\.选偏旁$/;
+  var STROKE_SKILL = /^认字\.笔顺(起笔|中段|末笔)$/;
+  var STROKE_LIMIT = 1;
+  var MATH_CALC = /[+＋\-－=＝]|算一算|一共|还剩|得数|加上|减去|比多|比少|再添|合起来|去掉|剩/;
+
+  function isBannedChar(it) { return BANNED_CHAR_SKILL.test((it && it.skill) || ''); }
+  function isStrokeChar(it) { return STROKE_SKILL.test((it && it.skill) || ''); }
+  function isCalcMath(it) { return it.type !== 'cmp' && MATH_CALC.test(it.stem || ''); }
+  function isPlainMath(it) { return it.type !== 'cmp'; }
+
   function paceCfg() {
     var st = w.Store.settings();
     return PACE[st.pace] || PACE.standard;
@@ -39,33 +53,47 @@
   /* 一个节点只有 5 认字 + 6 拼音，节奏要的题更多时，从这里补齐：
      先在本册「已经学过的节点」里按固定种子轮换抽（等于顺带复习），
      还不够（刚开学那几天）就顺着教材往下取最近的几课，不跳到很远的课文。 */
-  function fillModule(ids, module, target, date, slot, subject, cur) {
+  function fillModule(ids, module, target, date, slot, subject, cur, accept, prefer) {
     if (ids.length >= target) return ids.slice(0, target);
     var nodes = w.Content.allNodes(subject);
     var curIdx = nodes.length;   // 游标已经走完全册时，整册都算「学过」
     for (var i = 0; i < nodes.length; i++) {
       if (nodes[i].unit === cur.unit && nodes[i].node === cur.node) { curIdx = i; break; }
     }
-    var learned = [], upcoming = [];
+    /* prefer 把补位池分两级：先取优先题型（比如计算题），不够再取其它，
+       一次遍历就够，家长按天预览连推一年也不会卡 */
+    var learned = [], learned2 = [], upcoming = [], upcoming2 = [];
     nodes.forEach(function (n, ni) {
       n.items.forEach(function (it) {
         if (it.module !== module) return;
-        (ni < curIdx ? learned : upcoming).push(it.id);
+        if (accept && !accept(it)) return;   // 只从允许的题型里补位
+        var top = !prefer || prefer(it);
+        (ni < curIdx
+          ? (top ? learned : learned2)
+          : (top ? upcoming : upcoming2)).push(it.id);
       });
     });
     var used = {};
     ids.forEach(function (id) { used[id] = 1; });
     var out = ids.slice(0, target);
-    var start = seededIndex(date + '#' + slot + '#' + module, learned.length || 1);
-    for (var k = 0; k < learned.length && out.length < target; k++) {
-      var id = learned[(start + k) % learned.length];
-      if (used[id]) continue;
-      used[id] = 1; out.push(id);
+    var seed = date + '#' + slot + '#' + module;
+    function rotate(pool, s) {
+      for (var k = 0; k < pool.length && out.length < target; k++) {
+        var id = pool[(s + k) % pool.length];
+        if (used[id]) continue;
+        used[id] = 1; out.push(id);
+      }
     }
-    for (var j = 0; j < upcoming.length && out.length < target; j++) {
-      if (used[upcoming[j]]) continue;
-      used[upcoming[j]] = 1; out.push(upcoming[j]);
+    function sequential(pool) {
+      for (var j = 0; j < pool.length && out.length < target; j++) {
+        if (used[pool[j]]) continue;
+        used[pool[j]] = 1; out.push(pool[j]);
+      }
     }
+    rotate(learned, seededIndex(seed, learned.length || 1));
+    sequential(upcoming);
+    rotate(learned2, seededIndex(seed + '#2', learned2.length || 1));
+    sequential(upcoming2);
     return out;
   }
 
@@ -103,6 +131,38 @@
     return out.slice(0, n);
   }
 
+  /* 认字题过滤：偏旁题下架、笔顺类（第一笔 / 第 N 笔 / 最后一笔）每场合计最多 1 道。
+     不足下限（认字题不能被掏空）就从已学课文补非笔顺题；
+     剩下的缺口由 buildPlan 转成数学计算题。 */
+  function trimChars(ids, minKeep, date, slot, cur) {
+    var kept = [], strokes = 0;
+    ids.forEach(function (id) {
+      var it = w.Content.item(id);
+      if (!it || isBannedChar(it)) return;
+      if (isStrokeChar(it)) {
+        if (strokes >= STROKE_LIMIT) return;
+        strokes++;
+      }
+      kept.push(id);
+    });
+    if (kept.length < minKeep) {
+      kept = fillModule(kept, 'chars', minKeep, date, slot, 'chinese', cur, function (it) {
+        return !isBannedChar(it) && !isStrokeChar(it);
+      });
+    }
+    return kept;
+  }
+
+  /* 错题复习也遵守同样的限流，不能从后门塞回被下架的题 */
+  function charReviewOk(id, list) {
+    var it = w.Content.item(id);
+    if (!it || isBannedChar(it)) return false;
+    if (!isStrokeChar(it)) return true;
+    var n = 0;
+    list.forEach(function (x) { var t = w.Content.item(x); if (t && isStrokeChar(t)) n++; });
+    return n < STROKE_LIMIT;
+  }
+
   /* 内容用尽后的巩固题：优先错题，其次从已学节点抽。
      现在每场的常规题由 fillModule 稳定补齐，这个函数保留给外部按模块抽题用 */
   function consolidate(module, n, upto) {
@@ -127,13 +187,14 @@
   }
 
   /* 错题复习插题：替换目标模块中的题位 */
-  function injectReview(target, module, maxN) {
+  function injectReview(target, module, maxN, accept) {
     if (!w.Store.settings().review) return 0;
     var due = w.Store.dueMistakes(U.today())
       .filter(function (r) { return moduleOf(r.itemId) === module; });
     var used = 0;
     due.slice(0, maxN).forEach(function (r) {
       if (target.indexOf(r.itemId) >= 0) return;
+      if (accept && !accept(r.itemId, target)) return;
       // 替换掉最后一个非错题项
       for (var i = target.length - 1; i >= 0; i--) {
         var it = w.Content.item(target[i]);
@@ -185,15 +246,21 @@
 
       var chars = ywNode ? takeModule(ywNode.items, 'chars', cfg.mix.chars) : [];
       var pinyin = ywNode ? takeModule(ywNode.items, 'pinyin', cfg.mix.pinyin) : [];
-      var math = sxNode ? pickMath(sxNode.items, cfg.mix.math) : [];
       chars = fillModule(chars, 'chars', cfg.mix.chars, date, i, 'chinese', ywCur);
       pinyin = fillModule(pinyin, 'pinyin', cfg.mix.pinyin, date, i, 'chinese', ywCur);
-      math = fillModule(math, 'math', cfg.mix.math, date, i, 'math', sxCur);
+
+      /* 偏旁题下架、笔顺题每场最多 1 道；少掉的认字题位全数转给数学。
+         补位优先取「真要算」的加减题，计算题不够再用其它数学题兜底。 */
+      var minChars = Math.max(3, Math.round(cfg.mix.chars * 0.6));
+      chars = trimChars(chars, minChars, date, i, ywCur);
+      var mathN = cfg.mix.math + (cfg.mix.chars - chars.length);
+      var math = sxNode ? pickMath(sxNode.items, mathN) : [];
+      math = fillModule(math, 'math', mathN, date, i, 'math', sxCur, isPlainMath, isCalcMath);
       math = ensureCmp(math, date, i);
 
       // 插错题复习（数学 2 题、语文各 1 题）
       injectReview(math, 'math', 2);
-      injectReview(chars, 'chars', 1);
+      injectReview(chars, 'chars', 1, charReviewOk);
       injectReview(pinyin, 'pinyin', 1);
 
       var wCount = st.charsPerDay || cfg.writing;
@@ -229,8 +296,10 @@
   }
 
   /* 计划结构版本：题型/题量改过就 +1，还没开始做的旧计划会自动重排，
-     免得改完当天打开看到的还是老样子。v3 = 去掉送分认字题 + 三档题量改 18/25/35 */
-  var PLAN_VERSION = 3;
+     免得改完当天打开看到的还是老样子。
+     v3 = 去掉送分认字题 + 三档题量改 18/25/35
+     v4 = 偏旁题下架 + 笔顺题每场限 1 道 + 差额转数学计算题 */
+  var PLAN_VERSION = 4;
 
   function touched(day) {
     return (day.plan || []).some(function (s) {
@@ -531,7 +600,7 @@
   w.Task = {
     PACE: PACE, paceCfg: paceCfg,
     buildPlan: buildPlan, ensure: ensure, rebuild: rebuild, preview: preview,
-    pickMath: pickMath,
+    pickMath: pickMath, trimChars: trimChars, isCalcMath: isCalcMath,
     sessionItems: sessionItems, canCheckin: canCheckin, completeSlot: completeSlot,
     summary: summary, writingCharsOf: writingCharsOf, checkedIn: checkedIn,
     streakInfo: streakInfo, shouldRest: shouldRest, restGate: restGate, restGateIfNeeded: restGateIfNeeded,

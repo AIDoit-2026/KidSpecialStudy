@@ -97,13 +97,24 @@
     var day = Task.ensure(U.today());
     ok('生成场次 ≥1', day.plan.length >= 1, '实际 ' + day.plan.length);
     var s0 = day.plan[0];
-    ok('认字 7 题', s0.items.chars.length === 7, s0.items.chars.length);
+    ok('认字题在 3~7 道之间（笔顺限流后）', s0.items.chars.length >= 3 && s0.items.chars.length <= 7, s0.items.chars.length);
     ok('拼音 8 题', s0.items.pinyin.length === 8, s0.items.pinyin.length);
-    ok('数学 10 题', s0.items.math.length === 10, s0.items.math.length);
+    ok('少掉的认字题全数转成数学题',
+      s0.items.math.length === 10 + (7 - s0.items.chars.length), s0.items.math.length);
     ok('写字 4 字', s0.chars.length === 4, s0.chars.length);
     var allItems = Task.sessionItems(s0);
     ok('题目可解析', allItems.length === 25, allItems.length);
     ok('标准场正好 25 题', s0.total === 25, s0.total);
+    /* 偏旁题整类下架；第一笔 / 第 N 笔 / 最后一笔同属笔顺类，每场合计最多 1 道 */
+    var STROKE_SK = /^认字\.笔顺(起笔|中段|末笔)$/;
+    ok('本场笔顺题最多 1 道', allItems.filter(function (i) { return STROKE_SK.test(i.skill || ''); }).length <= 1,
+      allItems.filter(function (i) { return STROKE_SK.test(i.skill || ''); }).length);
+    ok('本场没有问偏旁的题', allItems.every(function (i) { return i.skill !== '认字.选偏旁'; }));
+    var extraMath = s0.items.math.length - 10;
+    ok('多出来的数学题都是计算题', s0.items.math.slice(-extraMath).every(function (id) {
+      var it = Content.item(id);
+      return it && (it.type === 'cmp' || Task.isCalcMath(it));
+    }), '新增 ' + extraMath + ' 道');
 
     /* 按天预览：家长挑日期检查题目，不能写记录，而且要真的往后走 */
     var pvD1 = U.addDays(U.today(), 7), pvD2 = U.addDays(U.today(), 8);
@@ -154,15 +165,29 @@
       n.items.forEach(function (i) { if (i.skill === '认字.听音选字') sylItems.push(i); });
     });
     ok('认字有 6 种问法', Object.keys(typeSet).length >= 6, Object.keys(typeSet).join('/'));
+    /* 新增的选字填空：挖空后别的选项填进去不能成词，答案必须唯一 */
+    var wordItems = [];
+    Content.allNodes('chinese').forEach(function (n) {
+      n.items.forEach(function (i) { if (i.skill === '认字.选字填空') wordItems.push(i); });
+    });
+    ok('选字填空答案唯一', wordItems.length > 0 && wordItems.every(function (i) {
+      var blank = i.stem.replace('选字填空：', '');
+      if (blank.indexOf('（　）') < 0) return false;
+      return i.options.every(function (o, k) {
+        if (k === i.answer) return true;
+        var alt = blank.replace('（　）', o);
+        return !(CHARS[o] && (CHARS[o].w || []).some(function (x) { return x === alt; }));
+      });
+    }), wordItems.length + ' 题');
     ok('听音选字无同音干扰', sylItems.length > 0 && sylItems.every(function (i) {
       var a = CHARS[i.options[i.answer]];
       return a && i.options.every(function (o, k) {
         return k === i.answer || !CHARS[o] || CHARS[o].p !== a.p;
       });
     }), sylItems.length + ' 题');
-    /* 已下架的 5 类太简单的题：数笔画 / 选组词 / 读第几声 / 声母韵母分类 / 字形结构 */
-    var bannedStem = /一共有几笔|可以组成下面哪个词|是第几声？|是声母还是韵母|是什么结构的字/;
-    var bannedSkill = /认字\.(数笔画|选组词|字形结构)|拼音\.(声调|声母辨认|韵母辨认|字母分类)$/;
+    /* 已下架的 6 类太简单的题：数笔画 / 选组词 / 读第几声 / 声母韵母分类 / 字形结构 / 问偏旁 */
+    var bannedStem = /一共有几笔|可以组成下面哪个词|是第几声？|是声母还是韵母|是什么结构的字|的偏旁是哪个/;
+    var bannedSkill = /认字\.(数笔画|选组词|字形结构|选偏旁)|拼音\.(声调|声母辨认|韵母辨认|字母分类)$/;
     var bannedHits = 0, allCnItems = 0;
     Content.allNodes('chinese').forEach(function (n) {
       n.items.forEach(function (i) {
@@ -170,7 +195,7 @@
         if (bannedStem.test(i.stem) || bannedSkill.test(i.skill || '')) bannedHits++;
       });
     });
-    ok('五类送分题已全部下架', bannedHits === 0 && allCnItems > 0, '残留 ' + bannedHits + ' / 共 ' + allCnItems + ' 题');
+    ok('六类送分题已全部下架', bannedHits === 0 && allCnItems > 0, '残留 ' + bannedHits + ' / 共 ' + allCnItems + ' 题');
     ok('下架后全册题量不变', Content.stats().ywItems === 781 || Content.stats().ywItems === 737,
       String(Content.stats().ywItems));
     ok('写字不预设写汉字或拼音', AI.modeOf({ chars: ['天'] }) === null && !('writingMode' in Store.settings()));
@@ -239,7 +264,7 @@
       var bad = [];
       Content.allNodes('math').forEach(function (n) {
         var want = n.items.filter(function (i) { return i.type === 'cmp'; }).length;
-        var ids = Task.pickMath(n.items, 10);
+        var ids = Task.pickMath(n.items, 13);   // 标准档限流后数学约 13 道
         var got = ids.filter(function (id) { var it = Content.item(id); return it && it.type === 'cmp'; }).length;
         if (want && !got) bad.push(n.title + '(漏了比较式)');
         if (!want && got) bad.push(n.title + '(凭空多出比较式)');
@@ -329,6 +354,10 @@
         ids.length === x[1] && new Set(ids).size === x[1] &&
         ids.every(function (id) { return !!Content.item(id); }),
         pp.map(function (s) { return s.total; }).join(','));
+      ok(x[0] + ' 笔顺题 ≤1 且无偏旁题', pp.every(function (s) {
+        return Task.sessionItems(s).filter(function (i) { return STROKE_SK.test(i.skill || ''); }).length <= 1 &&
+          Task.sessionItems(s).every(function (i) { return i.skill !== '认字.选偏旁'; });
+      }));
     });
     Store.saveSettings({ pace: 'standard' });
     var wp = Task.buildPlan('2026-11-07');

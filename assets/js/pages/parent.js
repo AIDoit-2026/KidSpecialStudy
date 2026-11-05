@@ -492,7 +492,8 @@
     });
     cfg.appendChild(seg);
     cfg.appendChild(U.h('div', { class: 'small muted', style: { marginTop: '8px' },
-      text: '每场题量：轻 18 题 / 标准 25 题 / 加量 35 题（认字 + 拼音 + 数学，写字另算）。' }));
+      text: '每场题量：轻 18 题 / 标准 25 题 / 加量 35 题（认字 + 拼音 + 数学，写字另算）。' +
+        '笔顺题每场最多 1 道，少出的题换成数学计算题。' }));
 
     cfg.appendChild(U.h('div', { class: 'row wrap', style: { marginTop: '16px', gap: '18px' } }));
     cfg.lastChild.appendChild(toggle('语音朗读题目', st.tts, function (v) { w.Store.saveSettings({ tts: v }); }));

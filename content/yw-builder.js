@@ -4,8 +4,9 @@
    1) 全书题干不重复（去重表 USED_STEM），同一个字的读音只问一次；
    2) 不出一眼就能抄答案的送分题。
 
-   已下架的 5 类「太简单」题型（数笔画 / 选组词 / 拼音读第几声 / 声母韵母分类 / 字形结构），
-   空出的题位由「第 N 笔 / 末笔」这类要真会笔顺的问法，以及更多拼读识字题补上。
+   已下架的 6 类「太简单」题型（数笔画 / 选组词 / 拼音读第几声 / 声母韵母分类 /
+   字形结构 / 问偏旁），空出的题位由「第 N 笔 / 末笔」「选字填空」这类
+   要真会笔顺、真懂字义的问法，以及更多拼读识字题补上。
    每个节点仍是 5 + 6 = 11 题，全册题量不变。 */
 (function (w) {
   'use strict';
@@ -13,9 +14,10 @@
   var C = w.CHARS, P = w.PY;
   var CODE = 'yw1a';
 
-  /* 认字问法：都要真的认识这个字（读音 / 笔顺 / 偏旁 / 听音找字）。
-     不再问「一共几笔」「能组哪个词」「什么结构」这类看一眼就能猜的。 */
-  var CHAR_TYPES = ['py', 'first', 'nth', 'last', 'radical', 'syl'];
+  /* 认字问法：都要真的认识这个字（读音 / 笔顺 / 字义 / 听音找字）。
+     不再问「一共几笔」「能组哪个词」「什么结构」「偏旁是哪个」这类看一眼就能猜的。
+     笔顺类（first/nth/last）在题库里保留，但每场练习最多只出 1 道，见 Task.trimChars。 */
+  var CHAR_TYPES = ['py', 'first', 'nth', 'last', 'word', 'syl'];
   var STROKE_POOL = ['横', '竖', '撇', '点', '提', '捺', '横折', '横钩', '竖钩', '竖提', '竖弯钩',
     '撇折', '斜钩', '卧钩', '横折钩', '横撇', '横折弯钩', '竖折'];
 
@@ -23,6 +25,7 @@
   var USED_STEM = null;        // 题干 → 1
   var USED_CHAR_TYPE = null;   // 字 → {题型:1}
   var USED_CHAR_PY = null;     // 已问过读音（字→拼音）的字
+  var USED_WORD = null;        // 选字填空用过的词 → 1（同一个词不考两次）
   var CHAR_BASE = null;        // 基础拼音 → [字]
   var BOOK_PREFIX = '人教版一上';
 
@@ -30,6 +33,7 @@
     USED_STEM = {};
     USED_CHAR_TYPE = {};
     USED_CHAR_PY = {};
+    USED_WORD = {};
     CHAR_BASE = null;
   }
 
@@ -50,6 +54,13 @@
     // 优先取靠前（更常见）的候选，再打乱顺序
     var head = cands.slice(0, Math.max(n * 3, n));
     return U.shuffle(head).slice(0, n);
+  }
+
+  /* 固定种子的候选挑选：不依赖 Math.random，同一个词每次生成的干扰项都一样 */
+  function hashPick(pool, n, seed, exclude) {
+    var cands = uniq(pool).filter(function (x) { return exclude.indexOf(x) < 0 && x !== undefined && x !== ''; });
+    cands.sort(function (a, b) { return hashStr(a + '|' + seed) - hashStr(b + '|' + seed); });
+    return cands.slice(0, n);
   }
 
   function shuffleOptions(correct, distractors) {
@@ -246,6 +257,56 @@
     };
   }
 
+  /* 选字填空：把词语里的目标字挖掉，让孩子从音近字里挑回来。
+     和已下架的「这个字能组成哪个词」正好反过来——得先读懂词语、再认得字形。
+     字库每个字都带 2 个组词，足够全书换着考；挖空后如果别的字也能组成这个词，
+     就换一个词，保证答案只有一个。 */
+  function wordOtherFits(word, from, to) {
+    var alt = word.replace(from, to);
+    return (C[to].w || []).some(function (x) { return x === alt; });
+  }
+
+  function gWordBlank(ch, node) {
+    var words = (ch.w || []).filter(function (word) {
+      return word.length === 2 && word.indexOf(ch.c) >= 0 && !USED_WORD[word];
+    });
+    if (!words.length) return null;
+    var start = hashStr(ch.c + '|' + node.id) % words.length;
+    for (var k = 0; k < words.length; k++) {
+      var word = words[(start + k) % words.length];
+      var stem = '选字填空：' + word.replace(ch.c, '（　）');
+      if (USED_STEM[stem]) continue;
+      var ambiguous = false, pool = [];
+      Object.keys(C).forEach(function (o) {
+        if (o === ch.c) return;
+        // 别的字填进去也成词 → 这题有两个答案，换词
+        if (wordOtherFits(word, ch.c, o)) { ambiguous = true; return; }
+        pool.push(o);
+      });
+      if (ambiguous) continue;
+      var base = P.stripTone(ch.p), part = splitSyl(base);
+      var tier1 = pool.filter(function (o) { return P.stripTone(C[o].p) === base; });
+      var tier2 = pool.filter(function (o) { return part.ini && splitSyl(P.stripTone(C[o].p)).ini === part.ini; });
+      var tier3 = pool.filter(function (o) { return part.fin && splitSyl(P.stripTone(C[o].p)).fin === part.fin; });
+      /* 干扰项按「同音 → 同声母 → 同韵母 → 其它」分层取，尽量别给一眼就能排除的字 */
+      var ds = hashPick(tier1, 2, word, [ch.c]);
+      [[tier2, '声'], [tier3, '韵'], [pool, '余']].forEach(function (t) {
+        if (ds.length >= 2) return;
+        ds = ds.concat(hashPick(t[0], 2 - ds.length, word + t[1], [ch.c].concat(ds)));
+      });
+      if (ds.length < 2) continue;
+      var r = shuffleOptions(ch.c, ds);
+      USED_WORD[word] = 1;
+      return {
+        type: 'choice', level: 2, skill: '认字.选字填空',
+        stem: stem, audio: '选字填空，括号里应该填哪个字',
+        options: r.options, answer: r.answer,
+        explain: '「' + word + '」里要填「' + ch.c + '」（' + ch.p + '），别的字填进去不成词。'
+      };
+    }
+    return null;
+  }
+
   /* ---------------- 认字题生成器 ---------------- */
   function buildCharItem(ch, type, idx, node, unit, qIndex) {
     var id = CODE + '-' + unit.id + '-' + node.id + '-c' + qIndex;
@@ -299,21 +360,11 @@
       });
     }
 
-    /* 选偏旁：独体字的偏旁就是它自己，会变成送分题，直接跳过 */
-    if (type === 'radical') {
-      if (!ch.r || ch.r === ch.c) return null;
-      var pool2 = [];
-      Object.keys(C).forEach(function (k) { if (C[k].r && C[k].r !== ch.r && C[k].r !== ch.c) pool2.push(C[k].r); });
-      var ds3 = pickDistinct(pool2, 2, [ch.r]);
-      if (ds3.length < 2) return null;
-      var r4 = shuffleOptions(ch.r, ds3);
-      return Object.assign(base, {
-        skill: '认字.选偏旁', level: 2,
-        stem: '「' + ch.c + '」的偏旁是哪个？',
-        audio: ch.c + '的偏旁是哪个',
-        options: r4.options, answer: r4.answer,
-        explain: '「' + ch.c + '」的偏旁是「' + ch.r + '」。'
-      });
+    /* 选字填空：给出挖空的词语，从音近字里挑回正确的字 */
+    if (type === 'word') {
+      var wordItem = gWordBlank(ch, node);
+      if (!wordItem) return null;
+      return Object.assign(base, wordItem);
     }
 
     /* 听音选字：给音节找汉字，和「看字选拼音」正好反过来。
