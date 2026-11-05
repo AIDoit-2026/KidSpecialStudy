@@ -69,12 +69,16 @@
       var plan = rec.plan || [];
       var done = plan.filter(function (s) { return s.status === 'done'; }).length;
       var makeup = plan.filter(function (s) { return s.type === 'catchup' && s.status === 'done'; }).length;
-      if (rec.done) return { status: makeup > 0 ? 'makeup' : 'full', badge: '✓', title: key + '　全部完成' };
+      /* 提交过一场就算这天打过卡，剩余场次在提示里说明 */
+      if (w.Task.checkedIn(rec)) {
+        var tail = plan.length && done < plan.length ? '（' + done + '/' + plan.length + ' 场）' : '';
+        return { status: makeup > 0 ? 'makeup' : 'full', badge: '✓', title: key + '　已打卡' + tail };
+      }
       if (done > 0) return { status: 'part', badge: done + '/' + plan.length, title: key + '　完成 ' + done + ' 场' };
       return { status: 'miss', title: key + '　未打卡' };
     }));
     var legend = U.h('div', { class: 'legend' });
-    [['#CDEFC0', '全部完成'], ['#FFF0C2', '部分完成'], ['#DCEEFF', '含补练'], ['#FBE9EF', '未打卡']].forEach(function (x) {
+    [['#CDEFC0', '已打卡'], ['#DCEEFF', '含补练'], ['#FFF0C2', '未完成'], ['#FBE9EF', '未打卡']].forEach(function (x) {
       legend.appendChild(U.h('span', {}, U.h('i', { style: { background: x[0] } }), x[1]));
     });
     calCard.appendChild(legend);
@@ -164,7 +168,7 @@
     function pct(v) { return v === null || v === undefined ? '—' : Math.round(v * 100) + '%'; }
 
     function longestStreak() {
-      var keys = Object.keys(allDays).filter(function (k) { return allDays[k].done; }).sort();
+      var keys = Object.keys(allDays).filter(function (k) { return w.Task.checkedIn(allDays[k]); }).sort();
       var best = 0, cur = 0, prev = null;
       keys.forEach(function (k) {
         if (prev && U.diffDays(prev, k) === 1) cur++;

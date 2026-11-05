@@ -67,6 +67,9 @@
     meta.appendChild(U.h('span', { class: 'pill pink', text: '⏱ 约 ' + (cur ? cur.estMin : 30) + ' 分钟 / 场' }));
     meta.appendChild(U.h('span', { class: 'pill blue', text: sum.dayTypeLabel + (sum.holiday ? '·' + sum.holiday : '') }));
     meta.appendChild(U.h('span', { class: 'pill green', text: '今日 ' + sum.doneCount + '/' + sum.planned + ' 场' }));
+    if (w.Task.checkedIn(day) && !sum.allDone) {
+      meta.appendChild(U.h('span', { class: 'pill green', text: '✓ 今日已打卡' }));
+    }
     if (sum.backlog > 0) {
       meta.appendChild(U.h('span', {
         class: 'pill yellow',

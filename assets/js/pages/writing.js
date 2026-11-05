@@ -206,9 +206,12 @@
       foot.appendChild(U.h('button', { class: 'btn btn-ghost', text: '← 回去做题', onclick: function () { App.go('#/practice?slot=' + slot); } }));
     }
     var canSubmit = chars.length === 0 || !!session.photoId;
+    /* 提交一场就算今天打过卡；已经打过卡的场次就只说「完成第 N 场」 */
+    var alreadyIn = w.Task.checkedIn(day);
     var btn = U.h('button', {
       class: 'btn btn-primary btn-lg btn-block', style: { marginTop: '10px' },
-      text: canSubmit ? '完成今天的打卡 ✓' : '先拍照上传才能打卡',
+      text: !canSubmit ? '先拍照上传才能打卡'
+        : (alreadyIn ? '完成第 ' + (slot + 1) + ' 场 ✓' : '完成今天的打卡 ✓'),
       onclick: function () {
         if (!canSubmit) { U.toast('还没上传作业照片哦', 'no'); return; }
         if (answered < total) { U.toast('还有题目没做完，先做完再来打卡', 'no'); return; }

@@ -55,11 +55,15 @@
     var sum = w.Task.summary(date);
     var pending = w.Store.pendingReviews();
     var stats = w.Content.stats();
+    var inToday = w.Task.checkedIn(w.Store.day(date));
 
     var c = U.h('div', { class: 'card' });
     c.appendChild(U.h('div', { class: 'card-title' },
       U.h('h2', { text: '今天（' + U.fmtCn(date) + ' ' + U.weekdayCn(date) + '）' }),
-      U.h('span', { class: 'pill ' + (sum.allDone ? 'green' : 'gray'), text: sum.allDone ? '已全部完成' : '进行中' })
+      U.h('span', {
+        class: 'pill ' + (inToday ? 'green' : 'gray'),
+        text: sum.allDone ? '已全部完成' : (inToday ? '已打卡' : '进行中')
+      })
     ));
     c.appendChild(U.h('div', { class: 'kv' },
       U.h('div', { class: 'k', text: '场次' }), U.h('div', { text: sum.doneCount + ' / ' + sum.planned + ' 场完成' }),
@@ -211,9 +215,9 @@
       }));
     });
     var pace = U.h('select', { class: 'input' },
-      U.h('option', { value: 'light', text: '轻（约 20 分钟）' }),
-      U.h('option', { value: 'standard', text: '标准（约 30 分钟）', selected: true }),
-      U.h('option', { value: 'plus', text: '加量（约 40 分钟）' })
+      U.h('option', { value: 'light', text: '轻（约 20 分钟 · 18 题）' }),
+      U.h('option', { value: 'standard', text: '标准（约 30 分钟 · 25 题）', selected: true }),
+      U.h('option', { value: 'plus', text: '加量（约 40 分钟 · 35 题）' })
     );
     var m = U.modal({
       title: '添加孩子',
@@ -487,6 +491,8 @@
       }));
     });
     cfg.appendChild(seg);
+    cfg.appendChild(U.h('div', { class: 'small muted', style: { marginTop: '8px' },
+      text: '每场题量：轻 18 题 / 标准 25 题 / 加量 35 题（认字 + 拼音 + 数学，写字另算）。' }));
 
     cfg.appendChild(U.h('div', { class: 'row wrap', style: { marginTop: '16px', gap: '18px' } }));
     cfg.lastChild.appendChild(toggle('语音朗读题目', st.tts, function (v) { w.Store.saveSettings({ tts: v }); }));
@@ -647,7 +653,7 @@
       ruleEl.textContent = '当天应完成：工作日 ' + wc + ' 场、周六 ' + sc + ' 场、周日 ' + uc +
         ' 场、法定节假日 ' + hc + ' 场，当天全部做完才算完成。' +
         '没做完的算欠账，' + (cc > 0 ? '每天（含工作日）最多再补 ' + cc + ' 场，' : '目前设为不补欠账，') +
-        '补练场次的题量略少，做完照样算完成。';
+        '补练场次写字少一些，做完照样算完成。';
     }
     refreshRule();
     sch.appendChild(ruleEl);

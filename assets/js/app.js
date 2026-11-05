@@ -130,11 +130,11 @@
     var days = w.Store.days();
     var streak = 0;
     var d = U.today();
-    // 今天没打卡不算断
-    if (!(days[d] && days[d].done)) d = U.addDays(d, -1);
+    // 今天没打卡不算断；提交过一场就算打过卡
+    if (!w.Task.checkedIn(days[d])) d = U.addDays(d, -1);
     for (var i = 0; i < 400; i++) {
       var rec = days[d];
-      if (rec && rec.done) { streak++; d = U.addDays(d, -1); }
+      if (w.Task.checkedIn(rec)) { streak++; d = U.addDays(d, -1); }
       else break;
     }
     return streak;
@@ -229,7 +229,17 @@
       sb.classList.remove('open');
     });
 
+    /* 侧栏的星星、连续打卡天数、册次都来自 Store；
+       若只在路由切换时刷新，写字页 → 完成页这条路径会先刷新外壳、
+       再由完成页写打卡，结果完成页上仍显示旧数字（要点一次别的页面才变）。 */
+    var CHROME_EVENTS = ['kid', 'kids', 'book', 'days', 'stars', 'settings', 'progress',
+      'restore', 'import', 'wipe'];
+    var chromeBusy = false;
     w.Store.subscribe(function (what) {
+      if (!chromeBusy && CHROME_EVENTS.indexOf(what) >= 0) {
+        chromeBusy = true;
+        try { refreshChrome(); } finally { chromeBusy = false; }
+      }
       if (what === 'kid' || what === 'kids') {
         var sb = document.querySelector('.sidebar');
         if (sb) sb.classList.remove('open');

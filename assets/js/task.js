@@ -2,10 +2,13 @@
 (function (w) {
   'use strict';
 
+  /* 每场题量：20 分钟 18 题 / 30 分钟 25 题 / 40 分钟 35 题。
+     mix 是三块各几题，加起来就是 total；一个节点只有 5 认字 + 6 拼音，
+     多出来的题从已经学过的节点里稳定轮换补齐（不烧新内容、也不出没学过的题）。 */
   var PACE = {
-    light: { chars: 4, pinyin: 5, math: 4, min: 20, label: '轻（约 20 分钟）' },
-    standard: { chars: 5, pinyin: 6, math: 5, min: 30, label: '标准（约 30 分钟）' },
-    plus: { chars: 5, pinyin: 6, math: 5, min: 40, label: '加量（约 40 分钟）' }
+    light: { total: 18, mix: { chars: 5, pinyin: 6, math: 7 }, writing: 3, min: 20, label: '轻（约 20 分钟 · 18 题）' },
+    standard: { total: 25, mix: { chars: 7, pinyin: 8, math: 10 }, writing: 4, min: 30, label: '标准（约 30 分钟 · 25 题）' },
+    plus: { total: 35, mix: { chars: 9, pinyin: 11, math: 15 }, writing: 5, min: 40, label: '加量（约 40 分钟 · 35 题）' }
   };
 
   function paceCfg() {
@@ -26,12 +29,52 @@
     return out;
   }
 
+  /* 固定种子的下标：同一天同一场每次算出来的巩固题都一样，预览和实做不会跳题 */
+  function seededIndex(s, mod) {
+    var h = 7;
+    for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % 1000003;
+    return mod ? h % mod : h;
+  }
+
+  /* 一个节点只有 5 认字 + 6 拼音，节奏要的题更多时，从这里补齐：
+     先在本册「已经学过的节点」里按固定种子轮换抽（等于顺带复习），
+     还不够（刚开学那几天）就顺着教材往下取最近的几课，不跳到很远的课文。 */
+  function fillModule(ids, module, target, date, slot, subject, cur) {
+    if (ids.length >= target) return ids.slice(0, target);
+    var nodes = w.Content.allNodes(subject);
+    var curIdx = nodes.length;   // 游标已经走完全册时，整册都算「学过」
+    for (var i = 0; i < nodes.length; i++) {
+      if (nodes[i].unit === cur.unit && nodes[i].node === cur.node) { curIdx = i; break; }
+    }
+    var learned = [], upcoming = [];
+    nodes.forEach(function (n, ni) {
+      n.items.forEach(function (it) {
+        if (it.module !== module) return;
+        (ni < curIdx ? learned : upcoming).push(it.id);
+      });
+    });
+    var used = {};
+    ids.forEach(function (id) { used[id] = 1; });
+    var out = ids.slice(0, target);
+    var start = seededIndex(date + '#' + slot + '#' + module, learned.length || 1);
+    for (var k = 0; k < learned.length && out.length < target; k++) {
+      var id = learned[(start + k) % learned.length];
+      if (used[id]) continue;
+      used[id] = 1; out.push(id);
+    }
+    for (var j = 0; j < upcoming.length && out.length < target; j++) {
+      if (used[upcoming[j]]) continue;
+      used[upcoming[j]] = 1; out.push(upcoming[j]);
+    }
+    return out;
+  }
+
   /* 数学内容全走完后是从全册抽巩固题，随机抽不一定抽到比较式填数，
-     这里兜一下：没有就补一道，保证每个练习都练到 */
+     这里兜一下：没有就换一道进去（替换而不是追加，题量才不会变），保证每个练习都练到 */
   function ensureCmp(ids, date, slot) {
     var has = false;
     ids.forEach(function (id) { var it = w.Content.item(id); if (it && it.type === 'cmp') has = true; });
-    if (has) return ids;
+    if (has || !ids.length) return ids;
     var pool = [];
     w.Content.allNodes('math').forEach(function (node) {
       node.items.forEach(function (it) { if (it.type === 'cmp') pool.push(it.id); });
@@ -39,25 +82,29 @@
     if (!pool.length) return ids;
     var s = date + '#' + slot, h = 7;
     for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % 99991;
-    return ids.concat([pool[h % pool.length]]);
+    var out = ids.slice();
+    out[Math.min(1, out.length - 1)] = pool[h % pool.length];
+    return out;
   }
 
-  /* 数学题挑选：常规题按原顺序取 n 道，再把本节点的「比较式填数」带上（1~3 道），
-     插在中间，先热身再上要反着想的。末尾留一道常规题，错题复习替换时不会把它顶掉。 */
+  /* 数学题挑选：常规题按原顺序取，再把本节点的「比较式填数」带 1~3 道插在中间，
+     先热身再上要反着想的。返回的题数不超过 n，其余由 fillModule 补齐。 */
   function pickMath(items, n) {
     var base = [], cmp = [];
     items.forEach(function (it) {
       if (it.type === 'cmp') cmp.push(it.id);
       else if (it.module === 'math') base.push(it.id);
     });
-    var out = base.slice(0, n);
-    cmp.slice(0, 3).forEach(function (id, i) {
-      out.splice(Math.min(1 + i * 2, Math.max(0, out.length - 1)), 0, id);
+    var wantCmp = Math.min(3, cmp.length, Math.max(1, Math.round(n / 5)));
+    var out = base.slice(0, Math.max(0, n - wantCmp));
+    cmp.slice(0, wantCmp).forEach(function (id, i) {
+      out.splice(Math.min(1 + i * 2, out.length), 0, id);
     });
-    return out;
+    return out.slice(0, n);
   }
 
-  /* 内容用尽后的巩固题：优先错题，其次从已学节点抽 */
+  /* 内容用尽后的巩固题：优先错题，其次从已学节点抽。
+     现在每场的常规题由 fillModule 稳定补齐，这个函数保留给外部按模块抽题用 */
   function consolidate(module, n, upto) {
     var out = [];
     var due = w.Store.dueMistakes(U.today()).filter(function (r) { return moduleOf(r.itemId) === module; });
@@ -136,23 +183,20 @@
       var ywNode = w.Content.nodeAtCursor('chinese', ywCur);
       var sxNode = w.Content.nodeAtCursor('math', sxCur);
 
-      var chars = ywNode ? takeModule(ywNode.items, 'chars', cfg.chars) : consolidate('chars', cfg.chars, null);
-      var pinyin = ywNode ? takeModule(ywNode.items, 'pinyin', cfg.pinyin) : consolidate('pinyin', cfg.pinyin, null);
-      var math = sxNode ? pickMath(sxNode.items, cfg.math) : ensureCmp(consolidate('math', cfg.math, null), date, i);
+      var chars = ywNode ? takeModule(ywNode.items, 'chars', cfg.mix.chars) : [];
+      var pinyin = ywNode ? takeModule(ywNode.items, 'pinyin', cfg.mix.pinyin) : [];
+      var math = sxNode ? pickMath(sxNode.items, cfg.mix.math) : [];
+      chars = fillModule(chars, 'chars', cfg.mix.chars, date, i, 'chinese', ywCur);
+      pinyin = fillModule(pinyin, 'pinyin', cfg.mix.pinyin, date, i, 'chinese', ywCur);
+      math = fillModule(math, 'math', cfg.mix.math, date, i, 'math', sxCur);
+      math = ensureCmp(math, date, i);
 
       // 插错题复习（数学 2 题、语文各 1 题）
       injectReview(math, 'math', 2);
       injectReview(chars, 'chars', 1);
       injectReview(pinyin, 'pinyin', 1);
 
-      // 加量模式追加 2 题巩固
-      if (st.pace === 'plus') {
-        consolidate('math', 2, null).forEach(function (id) {
-          if (math.indexOf(id) < 0) math.push(id);
-        });
-      }
-
-      var wCount = st.charsPerDay || cfg.chars;
+      var wCount = st.charsPerDay || cfg.writing;
       if (st.pace === 'light') wCount = Math.min(wCount, 3);
       if (isCatchup) wCount = st.catchupWriting ? Math.min(2, wCount) : 0;
       var wr = nextWriting(wCur, wCount);
@@ -185,8 +229,8 @@
   }
 
   /* 计划结构版本：题型/题量改过就 +1，还没开始做的旧计划会自动重排，
-     免得改完当天打开看到的还是老样子 */
-  var PLAN_VERSION = 2;
+     免得改完当天打开看到的还是老样子。v3 = 去掉送分认字题 + 三档题量改 18/25/35 */
+  var PLAN_VERSION = 3;
 
   function touched(day) {
     return (day.plan || []).some(function (s) {
@@ -195,6 +239,19 @@
   }
 
   /* 确保今天的计划已生成 */
+  /* 「今天打过卡」= 至少完成一场（那场的写字照片也要传）。
+     和 day.done（当天所有场次都完成）分开：一场就计 1 天，但今日页仍要照常提示剩余场次。
+     老数据没有 checkedIn 字段，用 done 兜底。 */
+  function checkedIn(day) {
+    if (!day) return false;
+    if (day.checkedIn) return true;
+    /* 老数据没这个字段：按 done 或「有一场做完且照片齐」兜底，升级后不用补数据 */
+    if (day.done) return true;
+    return (day.plan || []).some(function (s) {
+      return s.status === 'done' && (!s.chars || !s.chars.length || !!s.photoId);
+    });
+  }
+
   function ensure(date) {
     date = date || U.today();
     var day = w.Store.day(date);
@@ -202,16 +259,24 @@
       if (day.planVersion !== PLAN_VERSION && !touched(day)) return rebuild(date);
       return day;
     }
+    var prev = w.Store.day(date);
     var plan = buildPlan(date);
-    day = w.Store.saveDay(date, { plan: plan, done: false, startedAt: null, planVersion: PLAN_VERSION });
+    day = w.Store.saveDay(date, {
+      plan: plan, done: false, startedAt: null, planVersion: PLAN_VERSION,
+      checkedIn: checkedIn(prev)
+    });
     return day;
   }
 
-  /* 重建（内容/节奏/进度被外部改动后） */
+  /* 重建（内容/节奏/进度被外部改动后）；重排题目不能把已经打过的卡抹掉 */
   function rebuild(date) {
     date = date || U.today();
+    var old = w.Store.day(date);
     var plan = buildPlan(date);
-    return w.Store.saveDay(date, { plan: plan, done: false, startedAt: null, planVersion: PLAN_VERSION });
+    return w.Store.saveDay(date, {
+      plan: plan, done: false, startedAt: null, planVersion: PLAN_VERSION,
+      checkedIn: checkedIn(old)
+    });
   }
 
   /* 预览缓存：同一天在同一次查看里反复进出（列表 ↔ 详情 ↔ 翻场次）要看到同一份题，
@@ -415,7 +480,9 @@
     s.finishedAt = Date.now();
     s.photoId = s.photoId || (payload && payload.photoId) || null;
     day.done = day.plan.every(function (x) { return x.status === 'done' && (x.chars.length ? !!x.photoId : true); });
-    if (day.done && !day.finishedAt) day.finishedAt = Date.now();
+    /* 只要完成一场（且该场照片齐了）就算今天打过卡，连续天数不再等全部场次 */
+    day.checkedIn = day.plan.some(function (x) { return x.status === 'done' && (!x.chars || !x.chars.length || !!x.photoId); });
+    if (day.checkedIn && !day.finishedAt) day.finishedAt = Date.now();
     w.Store.saveDay(date, day);
 
     // 推进进度（取较大游标，避免乱序完成回退）
@@ -466,7 +533,7 @@
     buildPlan: buildPlan, ensure: ensure, rebuild: rebuild, preview: preview,
     pickMath: pickMath,
     sessionItems: sessionItems, canCheckin: canCheckin, completeSlot: completeSlot,
-    summary: summary, writingCharsOf: writingCharsOf,
+    summary: summary, writingCharsOf: writingCharsOf, checkedIn: checkedIn,
     streakInfo: streakInfo, shouldRest: shouldRest, restGate: restGate, restGateIfNeeded: restGateIfNeeded,
     BREAK_MIN: BREAK_MIN, REST_AFTER: REST_AFTER,
     maxCursor: maxCursor, consolidate: consolidate

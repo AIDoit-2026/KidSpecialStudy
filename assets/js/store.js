@@ -152,7 +152,12 @@
     var d = rawGet(kid.id + '_days', {}) || {};
     var rec = d[today];
     var hasPending = rec && (rec.plan || []).some(function (s) { return s.status !== 'done'; });
-    if (rec && hasPending) { delete d[today]; rawSet(kid.id + '_days', d); }
+    // 今天没做完的计划作废，但别把「今天已打过卡」这个事实一起删掉：
+    // 留一个空计划，Task.ensure 会按新册次重排并继承 checkedIn。
+    if (rec && hasPending) {
+      d[today] = { plan: [], done: false, startedAt: null, checkedIn: !!(rec.checkedIn || rec.done) };
+      rawSet(kid.id + '_days', d);
+    }
     delete mem[kid.id + '_days'];
     saveProgress({
       bookId: bookId, archive: arch,
@@ -173,7 +178,10 @@
     var kid = activeKid();
     var d = rawGet(kid.id + '_days', {}) || {};
     var today = U.today();
-    if (d[today] && !d[today].done) { delete d[today]; rawSet(kid.id + '_days', d); delete mem[kid.id + '_days']; }
+    if (d[today] && !d[today].done) {
+      d[today] = { plan: [], done: false, startedAt: null, checkedIn: !!d[today].checkedIn };
+      rawSet(kid.id + '_days', d); delete mem[kid.id + '_days'];
+    }
     notify('progress');
     return p;
   }

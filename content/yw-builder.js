@@ -2,19 +2,22 @@
    各册内容包只提供「节点规格」，这里统一生成题目（选项顺序随机、答案确定）。
    两条硬规则：
    1) 全书题干不重复（去重表 USED_STEM），同一个字的读音只问一次；
-   2) 拼音题以「字」和「音节」为锚点，不再出「d 和 i 拼成 di」这种一眼可抄的题。 */
+   2) 不出一眼就能抄答案的送分题。
+
+   已下架的 5 类「太简单」题型（数笔画 / 选组词 / 拼音读第几声 / 声母韵母分类 / 字形结构），
+   空出的题位由「第 N 笔 / 末笔」这类要真会笔顺的问法，以及更多拼读识字题补上。
+   每个节点仍是 5 + 6 = 11 题，全册题量不变。 */
 (function (w) {
   'use strict';
 
   var C = w.CHARS, P = w.PY;
   var CODE = 'yw1a';
 
-  var CHAR_TYPES = ['py', 'stroke', 'word', 'radical', 'struct', 'first', 'syl'];
+  /* 认字问法：都要真的认识这个字（读音 / 笔顺 / 偏旁 / 听音找字）。
+     不再问「一共几笔」「能组哪个词」「什么结构」这类看一眼就能猜的。 */
+  var CHAR_TYPES = ['py', 'first', 'nth', 'last', 'radical', 'syl'];
   var STROKE_POOL = ['横', '竖', '撇', '点', '提', '捺', '横折', '横钩', '竖钩', '竖提', '竖弯钩',
     '撇折', '斜钩', '卧钩', '横折钩', '横撇', '横折弯钩', '竖折'];
-  /* 结构题的候选池：字库里出现过的五种结构都要有，否则「国」这类字会掉进兜底选项变成错题。
-     每道题仍只出 3 个选项，从池子里抽 2 个干扰项。 */
-  var STRUCT_OPTS = ['左右结构', '上下结构', '独体字', '半包围结构', '全包围结构'];
 
   /* 全书去重表（每次 build 重置） */
   var USED_STEM = null;        // 题干 → 1
@@ -36,6 +39,12 @@
     return out;
   }
 
+  function hashStr(s) {
+    var h = 7;
+    for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % 1000003;
+    return h;
+  }
+
   function pickDistinct(pool, n, exclude) {
     var cands = uniq(pool).filter(function (x) { return exclude.indexOf(x) < 0 && x !== undefined && x !== ''; });
     // 优先取靠前（更常见）的候选，再打乱顺序
@@ -44,7 +53,7 @@
   }
 
   function shuffleOptions(correct, distractors) {
-    var opts = U.shuffle([correct].concat(distractors));
+    var opts = U.shuffle([correct].concat(distractors.filter(function (x) { return x !== undefined && x !== null && x !== ''; })));
     return { options: opts, answer: opts.indexOf(correct) };
   }
 
@@ -58,9 +67,12 @@
     return pool.slice(0, 20).filter(function (x) { return x !== ch.p; }).slice(0, n);
   }
 
-  function strokesDistractors(n, cnt) {
-    var cands = [n - 1, n + 1, n - 2, n + 2, n + 3].filter(function (x) { return x > 0; });
-    return U.shuffle(uniq(cands)).slice(0, cnt).map(function (x) { return x + ' 笔'; });
+  /* 笔顺题的干扰项优先用「这个字里的其他笔画」，孩子得真按笔顺数，猜不出来 */
+  function strokeDistractors(ch, correct, n) {
+    var own = uniq((ch.st || []).filter(function (s) { return s && s !== correct; }));
+    var out = pickDistinct(own, n, [correct]);
+    if (out.length < n) out = out.concat(pickDistinct(STROKE_POOL, n - out.length, [correct].concat(out)));
+    return out.slice(0, n);
   }
 
   /* ---------------- 拼音工具（本文件用） ---------------- */
@@ -190,23 +202,6 @@
     };
   }
 
-  /* 音节 → 第几声 */
-  function gTone(syl) {
-    var t = toneOfSyl(syl);
-    if (!t) return null;
-    var cn = P.TONE_CN[t];
-    var others = ['第一声', '第二声', '第三声', '第四声'].filter(function (x) { return x !== cn; });
-    var r = shuffleOptions(cn, U.shuffle(others).slice(0, 2));
-    return {
-      type: 'choice', level: 1, skill: '拼音.声调',
-      _syl: P.stripTone(syl),
-      stem: '「' + syl + '」是第几声？',
-      audio: '这个音节是第几声',
-      options: r.options, answer: r.answer,
-      explain: '「' + syl + '」是' + cn + '。'
-    };
-  }
-
   /* 标调位置：给不带调的音节，让孩子用规则判断 */
   function gMarkPos(base) {
     var target = markLetter(base);
@@ -241,23 +236,6 @@
     };
   }
 
-  /* 声母 / 韵母分类 */
-  function gLetterClass(letters, isSm) {
-    if (!letters || !letters.length) return null;
-    var L = letters[0];
-    if (isSm && P.SHENGMU.indexOf(L) < 0) return null;
-    if (!isSm && P.ZHENGTI.indexOf(L) >= 0) return null;
-    var correct = isSm ? '声母' : '韵母';
-    var r = shuffleOptions(correct, [isSm ? '韵母' : '声母', '整体认读音节']);
-    return {
-      type: 'choice', level: 1, skill: isSm ? '拼音.声母辨认' : '拼音.韵母辨认',
-      stem: '「' + L + '」是声母还是韵母？',
-      audio: L + '是声母还是韵母',
-      options: r.options, answer: r.answer,
-      explain: '「' + L + '」是' + correct + '。'
-    };
-  }
-
   /* 预设里的概念题 */
   function gQuiz(q) {
     if (!q || !q.o || q.a === undefined) return null;
@@ -268,6 +246,7 @@
     };
   }
 
+  /* ---------------- 认字题生成器 ---------------- */
   function buildCharItem(ch, type, idx, node, unit, qIndex) {
     var id = CODE + '-' + unit.id + '-' + node.id + '-c' + qIndex;
     var base = {
@@ -276,9 +255,11 @@
     };
     if (!ch) return null;
 
+    /* 看字选拼音 */
     if (type === 'py') {
+      if (USED_CHAR_PY[ch.c]) return null;
       var ds = pinyinDistractors(ch, 2);
-      if (ds.length < 2) return buildCharItem(ch, 'stroke', idx, node, unit, qIndex);
+      if (ds.length < 2) return null;
       var r1 = shuffleOptions(ch.p, ds);
       return Object.assign(base, {
         skill: '认字.看字选拼音',
@@ -289,61 +270,42 @@
       });
     }
 
-    if (type === 'stroke') {
-      if (!ch.s) return buildCharItem(ch, 'word', idx, node, unit, qIndex);
-      var r2 = shuffleOptions(ch.s + ' 笔', strokesDistractors(ch.s, 2));
+    /* 笔顺三问：第一笔 / 第 N 笔 / 最后一笔，都得真会笔顺才答得出 */
+    if (type === 'first' || type === 'nth' || type === 'last') {
+      var st = ch.st || [];
+      if (st.length < 2) return null;
+      if (type === 'nth' && st.length < 3) return null;
+      var pos, label, skill, level;
+      if (type === 'first') {
+        pos = 1; label = '第一笔'; skill = '认字.笔顺起笔'; level = 2;
+      } else if (type === 'last') {
+        pos = st.length; label = '最后一笔'; skill = '认字.笔顺末笔'; level = 3;
+      } else {
+        var maxPos = Math.min(st.length - 1, 5);
+        pos = 2 + (hashStr(ch.c + '|' + node.id) % Math.max(1, maxPos - 1));
+        label = '第' + pos + '笔'; skill = '认字.笔顺中段'; level = 3;
+      }
+      var correct = st[pos - 1];
+      if (!correct) return null;
+      var dsF = strokeDistractors(ch, correct, 2);
+      if (dsF.length < 2) return null;
+      var rF = shuffleOptions(correct, dsF);
       return Object.assign(base, {
-        skill: '认字.数笔画', level: 2,
-        stem: '「' + ch.c + '」一共有几笔？',
-        audio: ch.c + '一共有几笔',
-        options: r2.options, answer: r2.answer,
-        explain: ch.st.length ? '「' + ch.c + '」的笔顺是：' + ch.st.join('、') + '，共 ' + ch.s + ' 笔。' : '「' + ch.c + '」共 ' + ch.s + ' 笔。'
-      });
-    }
-
-    if (type === 'first') {
-      if (!ch.st || !ch.st.length) return buildCharItem(ch, 'py', idx, node, unit, qIndex);
-      var first = ch.st[0];
-      var dsF = pickDistinct(STROKE_POOL, 2, [first]);
-      if (dsF.length < 2) return buildCharItem(ch, 'py', idx, node, unit, qIndex);
-      var rF = shuffleOptions(first, dsF);
-      return Object.assign(base, {
-        skill: '认字.笔顺起笔', level: 2,
-        stem: '「' + ch.c + '」的第一笔是什么？',
-        audio: ch.c + '的第一笔是什么',
+        skill: skill, level: level,
+        stem: '「' + ch.c + '」的' + label + '是什么？',
+        audio: ch.c + '的' + label + '是什么',
         options: rF.options, answer: rF.answer,
-        explain: '「' + ch.c + '」的第一笔是「' + first + '」，笔顺是：' + ch.st.join('、') + '。'
+        explain: '「' + ch.c + '」的笔顺是：' + st.join('、') + '，' + label + '是「' + correct + '」。'
       });
     }
 
-    if (type === 'word') {
-      var correctWord = ch.w[0];
-      if (!correctWord) return buildCharItem(ch, 'py', idx, node, unit, qIndex);
-      var pool = [];
-      Object.keys(C).forEach(function (k) {
-        if (k === ch.c) return;
-        var w0 = C[k].w[0];
-        if (w0 && w0.indexOf(ch.c) < 0 && w0.length === correctWord.length) pool.push(w0);
-      });
-      var ds2 = pickDistinct(pool, 2, [correctWord]);
-      if (ds2.length < 2) return buildCharItem(ch, 'struct', idx, node, unit, qIndex);
-      var r3 = shuffleOptions(correctWord, ds2);
-      return Object.assign(base, {
-        skill: '认字.选组词',
-        stem: '「' + ch.c + '」可以组成下面哪个词？',
-        audio: ch.c + '可以组成下面哪个词',
-        options: r3.options, answer: r3.answer,
-        explain: '「' + ch.c + '」可以组成「' + correctWord + '」。'
-      });
-    }
-
+    /* 选偏旁：独体字的偏旁就是它自己，会变成送分题，直接跳过 */
     if (type === 'radical') {
-      /* 独体字的偏旁就是它自己，题目会变成「「二」的偏旁是二」这种送分题 */
-      if (!ch.r || ch.r === ch.c) return buildCharItem(ch, 'word', idx, node, unit, qIndex);
+      if (!ch.r || ch.r === ch.c) return null;
       var pool2 = [];
       Object.keys(C).forEach(function (k) { if (C[k].r && C[k].r !== ch.r && C[k].r !== ch.c) pool2.push(C[k].r); });
       var ds3 = pickDistinct(pool2, 2, [ch.r]);
-      if (ds3.length < 2) return buildCharItem(ch, 'word', idx, node, unit, qIndex);
+      if (ds3.length < 2) return null;
       var r4 = shuffleOptions(ch.r, ds3);
       return Object.assign(base, {
         skill: '认字.选偏旁', level: 2,
@@ -354,9 +316,10 @@
       });
     }
 
+    /* 听音选字：给音节找汉字，和「看字选拼音」正好反过来。
+       干扰项必须读音不同，否则同音字会造成两个正确答案。
+       题干和拼音模块的「是哪个字」错开写，避免全书题干撞车。 */
     if (type === 'syl') {
-      /* 听音选字：给音节找汉字，和「看字选拼音」正好反过来。
-         干扰项必须是读音不同的字，否则同音字会造成两个正确答案 */
       var py0 = P.stripTone(ch.p);
       var part0 = splitSyl(py0);
       var sameIni = [], sameFin = [], restS = [];
@@ -370,11 +333,11 @@
       var dsS = pickDistinct(sameIni, 2, [ch.c]);
       if (dsS.length < 2) dsS = dsS.concat(pickDistinct(sameFin, 2 - dsS.length, [ch.c].concat(dsS)));
       if (dsS.length < 2) dsS = dsS.concat(pickDistinct(restS, 2 - dsS.length, [ch.c].concat(dsS)));
-      if (dsS.length < 2) return buildCharItem(ch, 'stroke', idx, node, unit, qIndex);
+      if (dsS.length < 2) return null;
       var r6 = shuffleOptions(ch.c, dsS);
       return Object.assign(base, {
         skill: '认字.听音选字',
-        stem: '「' + ch.p + '」是下面哪个字？',
+        stem: '「' + ch.p + '」对应下面哪个字？',
         audio: ch.p + '是哪个字',
         stemPy: true,
         options: r6.options, answer: r6.answer,
@@ -382,23 +345,7 @@
       });
     }
 
-    /* struct */
-    if (!ch.struct) return buildCharItem(ch, 'py', idx, node, unit, qIndex);
-    var correctStruct = null;
-    for (var si = 0; si < STRUCT_OPTS.length; si++) {
-      if (STRUCT_OPTS[si].indexOf(ch.struct) >= 0) { correctStruct = STRUCT_OPTS[si]; break; }
-    }
-    // 字库里出现了候选池没有的结构（比如「左中右」），宁可换题型也不要出成错题
-    if (!correctStruct) return buildCharItem(ch, 'py', idx, node, unit, qIndex);
-    var ds4 = STRUCT_OPTS.filter(function (s) { return s !== correctStruct; });
-    var r5 = shuffleOptions(correctStruct, ds4.slice(0, 2));
-    return Object.assign(base, {
-      skill: '认字.字形结构', level: 2,
-      stem: '「' + ch.c + '」是什么结构的字？',
-      audio: ch.c + '是什么结构的字',
-      options: r5.options, answer: r5.answer,
-      explain: '「' + ch.c + '」是' + correctStruct + '。'
-    });
+    return null;
   }
 
   /* ---------------- 拼音：6 题 ---------------- */
@@ -413,6 +360,7 @@
 
   function buildPinyinItems(spec, node, unit, nodeIdx, covered) {
     var items = [];
+    var allChars = Object.keys(C).map(function (k) { return C[k]; });
     var nodeChars = (node.chars || []).map(function (c) { return C[c]; }).filter(Boolean);
     var pairs = (spec.pairs && spec.pairs.length) ? spec.pairs : [['b', 'a', 1], ['m', 'a', 3]];
     var SYL_USED = {};
@@ -420,8 +368,9 @@
     var nodeSet = node.chars || [];
     var learned = (covered || []).filter(function (c) { return nodeSet.indexOf(c) < 0 && C[c]; })
       .map(function (c) { return C[c]; });
-    var spare = Object.keys(C).map(function (k) { return C[k]; })
-      .filter(function (ch) { return nodeSet.indexOf(ch.c) < 0 && (covered || []).indexOf(ch.c) < 0; });
+    var spare = allChars.filter(function (ch) {
+      return nodeSet.indexOf(ch.c) < 0 && (covered || []).indexOf(ch.c) < 0;
+    });
     var otherChars = U.shuffle(learned.filter(function (ch) { return fitLesson(ch, spec); }));
     U.shuffle(spare.filter(function (ch) { return fitLesson(ch, spec); }))
       .slice(0, 16).forEach(function (ch) { otherChars.push(ch); });
@@ -431,6 +380,8 @@
       });
     }
     var charPool = nodeChars.concat(otherChars.slice(0, 24));
+    /* 全书兜底池：本节点的字问完之后，还有 400+ 个字可以换着问，题量不会掉 */
+    var extraChars = allChars.filter(function (ch) { return charPool.indexOf(ch) < 0; });
 
     function add(it) {
       if (!it || !it.options || it.options.length < 2) return false;
@@ -451,6 +402,7 @@
     }
 
     function pickFrom(group, start) {
+      if (!group.length) return false;
       for (var i = 0; i < group.length; i++) {
         var fn = group[(start + i) % group.length];
         var it = fn();
@@ -459,43 +411,64 @@
       return false;
     }
 
-    var charPys = charPool.map(function (ch) { return function () { return gCharPinyin(ch); }; });
-    var blends = pairs.map(function (pr) { return function () { return gBlend(pr[0], pr[1], pr[2], node.chars); }; });
-    /* 扩音：本课声母 × 韵母的组合，只要字库里有对应的字就能出题 */
-    (spec.sm || []).slice(0, 4).forEach(function (ini, ii) {
-      (spec.ym || []).slice(0, 4).forEach(function (fin, fi) {
-        blends.push(function () { return gBlend(ini, fin, ((nodeIdx + ii + fi) % 4) + 1, node.chars); });
+    /* 拼读：本课的拼读组合 × 四个声调，再扩到本课声母 × 韵母 */
+    var blends = [];
+    pairs.forEach(function (pr) {
+      for (var t = 1; t <= 4; t++) {
+        (function (ini, fin, tone) {
+          blends.push(function () { return gBlend(ini, fin, tone, node.chars); });
+        })(pr[0], pr[1], t);
+      }
+    });
+    (spec.sm || []).slice(0, 4).forEach(function (ini) {
+      (spec.ym || []).slice(0, 4).forEach(function (fin) {
+        for (var t = 1; t <= 4; t++) {
+          (function (a, b, tone) {
+            blends.push(function () { return gBlend(a, b, tone, node.chars); });
+          })(ini, fin, t);
+        }
       });
     });
-    var pyChars = charPool.map(function (ch) {
+
+    /* 字 → 读音、音节 → 字：先用本节点/已学的字，再用全字库兜底 */
+    var pyPool = charPool.concat(extraChars);
+    var charPys = pyPool.map(function (ch) { return function () { return gCharPinyin(ch); }; });
+    var pyChars = pyPool.map(function (ch) {
       return function () { return gSyllableChar(ch.p, node.chars); };
     });
-    var tones = charPool.map(function (ch) { return function () { return gTone(ch.p); }; });
-    var marks = pairs.map(function (pr) {
-      var b = pr[0] + P.stripTone(pr[1]);
+
+    /* 标调位置：本课的拼读组合 + 常见声韵母组合，只留含两个以上元音的 */
+    var markBases = [];
+    pairs.forEach(function (pr) { markBases.push(pr[0] + P.stripTone(pr[1])); });
+    var markInis = (spec.sm && spec.sm.length) ? spec.sm : P.SHENGMU.slice(0, 8);
+    var markFins = (spec.ym && spec.ym.length) ? spec.ym : P.YUNMU_DAN.concat(P.YUNMU_FU);
+    markInis.slice(0, 6).forEach(function (ini) {
+      markFins.slice(0, 12).forEach(function (fin) { markBases.push(ini + fin); });
+    });
+    var marks = uniq(markBases).map(function (b) {
       return function () { return gMarkPos(b); };
     });
+
     var miscs = (spec.quiz || []).map(function (q) { return function () { return gQuiz(q); }; });
     if (spec.ztr && spec.ztr.length) miscs.push(function () { return gZtr(spec); });
-    if (spec.sm && spec.sm.length) miscs.push(function () { return gLetterClass(spec.sm, true); });
-    if (spec.ym && spec.ym.length) miscs.push(function () { return gLetterClass(spec.ym, false); });
 
-    var groups = [blends, charPys, pyChars, tones, marks, miscs];
+    var groups = [blends, charPys, pyChars, marks, miscs];
     groups.forEach(function (g, gi) { if (g.length) pickFrom(g, (nodeIdx + gi) % g.length); });
 
-    /* 不足 6 题：继续从各组捞，最后用声调组合兜底 */
+    /* 不足 6 题：继续从各组捞，最后用拼读组合兜底 */
     var guard = 0;
-    while (items.length < 6 && guard < 60) {
+    while (items.length < 6 && guard < 120) {
       var progressed = false;
       for (var gi2 = 0; gi2 < groups.length && items.length < 6; gi2++) {
         if (pickFrom(groups[gi2], guard)) progressed = true;
       }
       if (!progressed) {
-        var inis = (spec.sm && spec.sm.length) ? spec.sm : ['b', 'p', 'm', 'f', 'd', 't', 'n', 'l'];
-        var fins = (spec.ym && spec.ym.length) ? spec.ym : ['a', 'o', 'e', 'i', 'u'];
+        var inis = (spec.sm && spec.sm.length) ? spec.sm : P.SHENGMU.slice(0, 8);
+        var fins = (spec.ym && spec.ym.length) ? spec.ym : P.YUNMU_DAN;
         var ini = inis[guard % inis.length];
         var fin = fins[Math.floor(guard / inis.length) % fins.length];
-        add(gTone(P.syllable(ini, fin, (guard % 4) + 1)));
+        if (add(gBlend(ini, fin, (guard % 4) + 1, node.chars))) progressed = true;
+        if (items.length < 6 && add(gMarkPos(ini + fin))) progressed = true;
       }
       guard++;
     }
@@ -519,6 +492,7 @@
     };
 
     var covered = [];
+    var allCharKeys = Object.keys(C);
     units.forEach(function (unit, ui) {
       var u = { id: unit.id, name: unit.name, index: ui, lessons: [], nodes: [] };
       unit.nodes.forEach(function (node, ni) {
@@ -550,13 +524,22 @@
           if (!chObj) return;
           var it = askChar(chObj), asked = c;
           if (!it) {
-            /* 这个字的问法已经用完（同一册里被好几个节点重复用到）→ 换成前面学过、还没考过的字 */
+            /* 这个字的问法用完了 → 换成前面学过、还没考过的字 */
             var pool = covered.slice().reverse();
             for (var k = 0; k < pool.length && !it; k++) {
               var alt = pool[k];
               if (alt === c || qChars.indexOf(alt) >= 0 || !C[alt]) continue;
               it = askChar(C[alt]);
               if (it) asked = alt;
+            }
+          }
+          if (!it) {
+            /* 还没凑够就再放宽到全字库，保证每场就是 5 题 */
+            for (var k2 = 0; k2 < allCharKeys.length && !it; k2++) {
+              var alt2 = allCharKeys[(k2 + ni * 7) % allCharKeys.length];
+              if (qChars.indexOf(alt2) >= 0) continue;
+              it = askChar(C[alt2]);
+              if (it) asked = alt2;
             }
           }
           if (!it) return;

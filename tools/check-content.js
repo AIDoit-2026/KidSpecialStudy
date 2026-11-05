@@ -81,6 +81,22 @@ summary.forEach(s => {
 });
 console.log(`合计：${grand.nodes} 节点 / ${grand.items} 题`);
 
+console.log('\n=== 送分题下架检查 ===');
+const BANNED_STEM = /一共有几笔|可以组成下面哪个词|是第几声？|是声母还是韵母|是什么结构的字/;
+const BANNED_SKILL = /^认字\.(数笔画|选组词|字形结构)$|^拼音\.(声调|声母辨认|韵母辨认|字母分类)$/;
+const WANT_ITEMS = { 'yw-1a': 781, 'yw-1b': 737, 'sx-1a': 296, 'sx-1b': 306 };
+BOOKS.forEach(bid => {
+  const b = ctx.CONTENT[bid];
+  if (!b) return;
+  let bad = 0;
+  b.units.forEach(u => u.nodes.forEach(n => n.items.forEach(it => {
+    if (BANNED_STEM.test(it.stem) || BANNED_SKILL.test(it.skill || '')) bad++;
+  })));
+  if (bad) err(`${CN[bid]} 还留着 ${bad} 道已下架的送分题`);
+  if (b.itemCount !== WANT_ITEMS[bid]) err(`${CN[bid]} 题量 ${b.itemCount}（应 ${WANT_ITEMS[bid]}）`);
+});
+console.log('五类送分题：数笔画 / 选组词 / 读第几声 / 声母韵母分类 / 字形结构 → 应为 0；四册题量应保持不变');
+
 console.log('\n=== 比较式填数（□ + 2 < 5） ===');
 let cmpN = 0, cmpBad = 0, cmpRange = 0;
 const cover = { 加: 0, 减: 0, 挖第一个数: 0, 挖第二个数: 0, 算式在左: 0, 算式在右: 0, 求最大: 0, 求最小: 0 };

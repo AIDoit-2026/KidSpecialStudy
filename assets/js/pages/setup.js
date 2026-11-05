@@ -63,8 +63,8 @@
       }));
     } else if (step === 1) {
       var seg = U.h('div', { class: 'grid', style: { gap: '10px' } });
-      [['light', '☕ 轻', '约 20 分钟，适合刚上一年级'], ['standard', '🌤 标准', '约 30 分钟，推荐'],
-      ['plus', '🔥 加量', '约 40 分钟，基础好、想多练']].forEach(function (x) {
+      [['light', '☕ 轻', '约 20 分钟 / 18 题，适合刚上一年级'], ['standard', '🌤 标准', '约 30 分钟 / 25 题，推荐'],
+      ['plus', '🔥 加量', '约 40 分钟 / 35 题，基础好、想多练']].forEach(function (x) {
         var on = draft.pace === x[0];
         seg.appendChild(U.h('button', {
           class: 'btn' + (on ? ' btn-primary' : ' btn-ghost'),

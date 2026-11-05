@@ -30,7 +30,10 @@
     var wrap = U.h('div', { class: 'done-wrap' });
     wrap.appendChild(U.h('div', { class: 'done-emoji', text: score >= 0.8 ? '🎉' : score >= 0.5 ? '👍' : '💪' }));
     wrap.appendChild(U.h('h2', { text: '第 ' + (slot + 1) + ' 场完成！' }));
-    wrap.appendChild(U.h('div', { class: 'muted', text: session.type === 'catchup' ? '这一场是补练，欠的账又少一场～' : '今天的任务打卡成功' }));
+    var leftToday = day.plan.filter(function (x) { return x.status !== 'done'; }).length;
+    wrap.appendChild(U.h('div', { class: 'muted', text: session.type === 'catchup' ? '这一场是补练，欠的账又少一场～'
+      : (!leftToday ? '今天全部完成，打卡成功 🎉'
+        : '今天打卡成功 ✓，想继续还可以做 ' + leftToday + ' 场') }));
 
     var starRow = U.h('div', { class: 'done-stars' });
     var n = Math.min(5, Math.max(1, Math.round(score * 5)));

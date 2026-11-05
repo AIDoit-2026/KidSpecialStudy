@@ -97,12 +97,13 @@
     var day = Task.ensure(U.today());
     ok('生成场次 ≥1', day.plan.length >= 1, '实际 ' + day.plan.length);
     var s0 = day.plan[0];
-    ok('认字 5 题', s0.items.chars.length === 5, s0.items.chars.length);
-    ok('拼音 6 题', s0.items.pinyin.length === 6, s0.items.pinyin.length);
-    ok('数学 5 题', s0.items.math.length === 5, s0.items.math.length);
+    ok('认字 7 题', s0.items.chars.length === 7, s0.items.chars.length);
+    ok('拼音 8 题', s0.items.pinyin.length === 8, s0.items.pinyin.length);
+    ok('数学 10 题', s0.items.math.length === 10, s0.items.math.length);
     ok('写字 4 字', s0.chars.length === 4, s0.chars.length);
     var allItems = Task.sessionItems(s0);
-    ok('题目可解析', allItems.length === 16, allItems.length);
+    ok('题目可解析', allItems.length === 25, allItems.length);
+    ok('标准场正好 25 题', s0.total === 25, s0.total);
 
     /* 按天预览：家长挑日期检查题目，不能写记录，而且要真的往后走 */
     var pvD1 = U.addDays(U.today(), 7), pvD2 = U.addDays(U.today(), 8);
@@ -152,26 +153,26 @@
     Content.allNodes('chinese').forEach(function (n) {
       n.items.forEach(function (i) { if (i.skill === '认字.听音选字') sylItems.push(i); });
     });
-    ok('听音选字有 7 种问法', Object.keys(typeSet).length >= 7, Object.keys(typeSet).join('/'));
+    ok('认字有 6 种问法', Object.keys(typeSet).length >= 6, Object.keys(typeSet).join('/'));
     ok('听音选字无同音干扰', sylItems.length > 0 && sylItems.every(function (i) {
       var a = CHARS[i.options[i.answer]];
       return a && i.options.every(function (o, k) {
         return k === i.answer || !CHARS[o] || CHARS[o].p !== a.p;
       });
     }), sylItems.length + ' 题');
-    /* 结构题：字库里有半包围 / 全包围的字，以前会兜底成「独体字」答错 */
-    var structN = 0, structBad = 0;
+    /* 已下架的 5 类太简单的题：数笔画 / 选组词 / 读第几声 / 声母韵母分类 / 字形结构 */
+    var bannedStem = /一共有几笔|可以组成下面哪个词|是第几声？|是声母还是韵母|是什么结构的字/;
+    var bannedSkill = /认字\.(数笔画|选组词|字形结构)|拼音\.(声调|声母辨认|韵母辨认|字母分类)$/;
+    var bannedHits = 0, allCnItems = 0;
     Content.allNodes('chinese').forEach(function (n) {
       n.items.forEach(function (i) {
-        if (i.skill !== '认字.字形结构' || !i.options) return;
-        structN++;
-        var ch = (i.stem.match(/「(.)」/) || [])[1];
-        var rec = CHARS[ch];
-        var ans = i.options[i.answer];
-        if (!rec || !ans || ans.indexOf(rec.struct) < 0) structBad++;
+        allCnItems++;
+        if (bannedStem.test(i.stem) || bannedSkill.test(i.skill || '')) bannedHits++;
       });
     });
-    ok('结构题答案与字库一致', structN > 0 && structBad === 0, structN + ' 题，错 ' + structBad);
+    ok('五类送分题已全部下架', bannedHits === 0 && allCnItems > 0, '残留 ' + bannedHits + ' / 共 ' + allCnItems + ' 题');
+    ok('下架后全册题量不变', Content.stats().ywItems === 781 || Content.stats().ywItems === 737,
+      String(Content.stats().ywItems));
     ok('写字不预设写汉字或拼音', AI.modeOf({ chars: ['天'] }) === null && !('writingMode' in Store.settings()));
     var pyPrompt = AI.promptFor({ chars: ['天'], mode: 'pinyin' });
     ok('提示词说两种都可以', pyPrompt.indexOf('写汉字或写拼音都可以') >= 0);
@@ -238,10 +239,11 @@
       var bad = [];
       Content.allNodes('math').forEach(function (n) {
         var want = n.items.filter(function (i) { return i.type === 'cmp'; }).length;
-        var ids = Task.pickMath(n.items, 5);
+        var ids = Task.pickMath(n.items, 10);
         var got = ids.filter(function (id) { var it = Content.item(id); return it && it.type === 'cmp'; }).length;
-        if (got !== Math.min(want, 3)) bad.push(n.title);
-        if (ids.length - got !== 5) bad.push(n.title + '(常规题不是 5 道)');
+        if (want && !got) bad.push(n.title + '(漏了比较式)');
+        if (!want && got) bad.push(n.title + '(凭空多出比较式)');
+        if (ids.length !== ids.filter(function (id, k) { return ids.indexOf(id) === k; }).length) bad.push(n.title + '(重复题)');
       });
       return bad.length === 0;
     })());
@@ -274,7 +276,7 @@
       Store.addAttempt({ id: U.uid('a'), date: U.today(), subject: it.module, itemId: it.id, answer: ans, correct: true, tries: 1, ms: 1000, skill: it.skill });
     });
     Store.saveDay(U.today(), day);
-    ok('答题落盘', Object.keys(Store.day(U.today()).plan[0].answers).length === 16);
+    ok('答题落盘', Object.keys(Store.day(U.today()).plan[0].answers).length === allItems.length);
 
     /* 错题 */
     var wrongItem = allItems[0];
@@ -316,7 +318,19 @@
     ok('加练写字不缩水', hp[1].chars.length === hp[0].chars.length, hp[1].chars.length + ' vs ' + hp[0].chars.length);
     ok('补练不重复试题', hp[0].items.math[0] !== hp[1].items.math[0],
       hp[0].items.math[0] + ' vs ' + hp[1].items.math[0]);
-    ok('三场题量都够', hp.every(function (s) { return s.total === 16; }), hp.map(function (s) { return s.total; }).join(','));
+    ok('三场题量都够', hp.every(function (s) { return s.total === 25; }), hp.map(function (s) { return s.total; }).join(','));
+    /* 三档节奏：20 分钟 18 题 / 30 分钟 25 题 / 40 分钟 35 题，且同场不出现重复题 */
+    [['light', 18], ['standard', 25], ['plus', 35]].forEach(function (x) {
+      Store.saveSettings({ pace: x[0] });
+      var pp = Task.buildPlan('2026-11-06');
+      var ids = pp[0].items.chars.concat(pp[0].items.pinyin, pp[0].items.math);
+      ok(x[0] + ' 每场 ' + x[1] + ' 题',
+        pp.every(function (s) { return s.total === x[1]; }) &&
+        ids.length === x[1] && new Set(ids).size === x[1] &&
+        ids.every(function (id) { return !!Content.item(id); }),
+        pp.map(function (s) { return s.total; }).join(','));
+    });
+    Store.saveSettings({ pace: 'standard' });
     var wp = Task.buildPlan('2026-11-07');
     ok('周六排 3 场', wp.length === 3, wp.length);
     var sp = Task.buildPlan('2026-11-08');
@@ -426,6 +440,16 @@
     var problems = Content.validate();
     ok('内容包无结构问题', problems.length === 0, problems.slice(0, 3).join(' | '));
 
+    section('连续打卡天数');
+    var t0 = U.today(), y1 = U.addDays(t0, -1), y2 = U.addDays(t0, -2);
+    var todayDone = Task.checkedIn(Store.day(t0));
+    /* 今天没完成不算断签，从昨天往前数 */
+    Store.saveDay(y1, { done: true, plan: [] });
+    Store.saveDay(y2, { done: true, plan: [] });
+    ok('连续天数按天累加', App.streak() === 2 + (todayDone ? 1 : 0), '实际 ' + App.streak());
+    Store.saveDay(y2, { done: false, plan: [] });
+    ok('中间断一天重新计数', App.streak() === 1 + (todayDone ? 1 : 0), '实际 ' + App.streak());
+
   } catch (e) {
     fail++;
     out.push('EXCEPTION: ' + e.message + '\n' + (e.stack || ''));
@@ -532,10 +556,67 @@
     Store.jumpTo(0, 0, 0, 0);
   }
 
+  /* 完成页是「先刷新外壳、再写打卡」，写完必须当场同步侧栏，不能等下一次切页。
+     放在异步末尾跑，确保 app.js 的 boot 已经注册好 Store 订阅。 */
+  function streakUI() {
+    var t = U.today(), back = U.addDays(t, -1);
+    var sideText = function () {
+      var el = document.querySelector('#side-kid .sk-streak');
+      return el ? el.textContent.replace(/\s+/g, ' ') : '';
+    };
+    Store.saveDay(back, { done: false, plan: [] });
+    App.refreshChrome();
+    var beforeTxt = sideText(), beforeN = App.streak();
+    Store.saveDay(back, { done: true, plan: [] });
+    var afterTxt = sideText(), afterN = App.streak();
+    ok('打卡写入后侧栏立刻 +1', afterN === beforeN + 1 &&
+      afterTxt !== beforeTxt && afterTxt.indexOf(String(afterN)) >= 0,
+      beforeTxt + ' → ' + afterTxt + '（' + beforeN + ' → ' + afterN + '）');
+  }
+
+  /* 「提交一场就算一天」：一场即打卡，但不能把今日页的「全部完成」也提前点亮 */
+  function checkinSemantics() {
+    section('一场即打卡');
+    ok('打卡标记优先看 checkedIn', Task.checkedIn({ done: false, checkedIn: true, plan: [] }) === true);
+    ok('老数据按 done 兼容', Task.checkedIn({ done: true, plan: [] }) === true);
+    ok('没做过不算打卡', Task.checkedIn({ done: false, plan: [] }) === false);
+    ok('老数据有一场做完也算', Task.checkedIn({
+      done: false, plan: [{ status: 'done', chars: [], photoId: null }]
+    }) === true);
+    ok('缺写字照片不算', Task.checkedIn({
+      done: false, plan: [{ status: 'done', chars: ['天'], photoId: null }]
+    }) === false);
+
+    var t = U.today();
+    var oldCap = Store.settings().workCapacity;
+    Store.saveSettings({ workCapacity: 3 });
+    Store.saveDay(t, { plan: [], done: false, checkedIn: false });   // 从没打过卡的一天开始
+    var day = Task.rebuild(t);
+    ok('造出多场次计划', day.plan.length >= 2, day.plan.length + ' 场');
+    ok('新的一天还没打卡', Task.checkedIn(day) === false);
+    Store.saveDay(U.addDays(t, -1), { done: false, plan: [] });  // 只看今天
+
+    var s0 = day.plan[0];
+    Task.sessionItems(s0).forEach(function (it) { s0.answers[it.id] = { correct: true, tries: 1 }; });
+    s0.photoId = 'p_test';
+    Store.saveDay(t, day);
+    Task.completeSlot(t, 0, { ms: 60000 });
+    var after = Store.day(t);
+    ok('做完 1 场就算打过卡', Task.checkedIn(after) === true);
+    ok('但不等于今日全部完成', after.done === false);
+    ok('连续天数把今天算上', App.streak() === 1, '实际 ' + App.streak());
+    ok('重排不会抹掉打卡', Task.checkedIn(Task.rebuild(t)) === true && App.streak() === 1);
+    Store.saveSettings({ workCapacity: oldCap });
+  }
+
   interaction().catch(function (e) {
     fail++; out.push('EXCEPTION(interaction): ' + e.message);
   }).then(function () {
     try { multiBook(); } catch (e) { fail++; out.push('EXCEPTION(multiBook): ' + e.message); }
+  }).then(function () {
+    try { streakUI(); } catch (e) { fail++; out.push('EXCEPTION(streakUI): ' + e.message); }
+  }).then(function () {
+    try { checkinSemantics(); } catch (e) { fail++; out.push('EXCEPTION(checkinSemantics): ' + e.message); }
   }).then(function () {
     renderResults();
     document.title = '冒烟测试：' + pass + ' 通过 / ' + fail + ' 失败';
