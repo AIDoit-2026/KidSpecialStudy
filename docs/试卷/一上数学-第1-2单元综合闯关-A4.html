@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>一年级上册数学 第一、二单元综合闯关</title>
+<style>
+  @page { size: A4 portrait; margin: 0; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: #a8adb4;
+    font-family: "楷体", "KaiTi", "STKaiti", "Kaiti SC", serif;
+    color: #141414;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .page {
+    width: 210mm; height: 297mm;
+    padding: 9.5mm 12mm 5mm;
+    background: #fff;
+    margin: 6mm auto;
+    box-shadow: 0 2px 10px rgba(0,0,0,.25);
+    position: relative;
+    font-size: 14.8px;
+    line-height: 1.42;
+  }
+  #p2 { font-size: 14.6px; line-height: 1.36; }
+  #p2 .h { font-size: 15.6px; margin: 5px 0 2px; }
+  @media print {
+    body { background: #fff; }
+    .page { margin: 0; box-shadow: none; page-break-after: always; }
+    .page:last-of-type { page-break-after: auto; }
+    .hint { display: none !important; }
+  }
+  .hint {
+    max-width: 210mm; margin: 6mm auto 10mm; padding: 10px 14px;
+    background: #fffbe6; border: 1px solid #e8d48b; border-radius: 6px;
+    font-family: "Microsoft YaHei", sans-serif; font-size: 13px; color: #6b5200; line-height: 1.7;
+  }
+
+  .head { text-align: center; margin-bottom: 6px; }
+  .title { font-size: 23px; font-weight: 700; letter-spacing: 1px; }
+  .sub { font-size: 12.5px; color: #444; margin-top: 1px; letter-spacing: .5px; }
+  .meta { display: flex; justify-content: space-between; align-items: flex-end; margin: 6px 4px 0; font-size: 13.5px; }
+  .meta i { display: inline-block; border-bottom: 1.2px solid #222; vertical-align: -3px; }
+  .w45 { width: 44px; } .w55 { width: 54px; } .w65 { width: 66px; }
+  .score i { width: 44px; height: 20px; border: 1.4px solid #222; vertical-align: -5px; }
+
+  .h { font-size: 16px; font-weight: 700; margin: 7px 0 3px; }
+  .h .pt { font-size: 12px; font-weight: 400; color: #555; }
+
+  .bx { display: inline-block; width: 26px; height: 20px; border: 1.4px solid #222; border-radius: 3px; vertical-align: -4px; background: #fff; }
+  .bx.w { width: 32px; }
+  .cir { display: inline-block; width: 22px; height: 22px; border: 1.4px solid #222; border-radius: 50%; vertical-align: -5px; background: #fff; }
+  .eq { display: flex; align-items: center; gap: 5px; font-size: 16.5px; justify-content: center; }
+
+  .figs { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 14px; }
+  .fig { display: block; width: 100%; height: auto; }
+  .fig-item .eq { margin-top: 1px; }
+  .no { font-size: 13.5px; }
+
+  .grid6 { display: grid; grid-template-columns: repeat(6, 1fr); gap: 2px 0; font-size: 14.2px; }
+  .grid6 .cell { white-space: nowrap; }
+  .grid5 { display: grid; grid-template-columns: repeat(5, 1fr); gap: 2px 2px; font-size: 15px; }
+  .grid5 .cell { white-space: nowrap; }
+  .grid4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px 2px; font-size: 15px; }
+  .grid4 .cell { white-space: nowrap; }
+  .lbl { font-size: 13px; color: #555; margin: 0 0 1px; }
+
+  .plates { display: flex; justify-content: center; gap: 2px; margin: 1px 0; }
+  .plates svg { width: 100px; height: 70px; }
+  .qline { margin: 2px 0; font-size: 15.2px; }
+
+  .q6 .li { margin: 1px 0; line-height: 1.32; }
+  .prob { margin: 1px 0 2px; }
+  .prob .stem { margin-bottom: 2px; }
+  .opts { margin-left: 14px; font-size: 14.2px; }
+  .opts span { margin-right: 16px; }
+  .ansline { font-size: 14.8px; margin-top: 1px; }
+
+  ruby { ruby-position: over; }
+  ruby rt { font-family: "Segoe UI", Arial, sans-serif; font-size: 9px; color: #333; }
+
+  .endline { text-align: center; color: #666; font-size: 11.5px; margin-top: 2px; }
+  .sprite { position: absolute; width: 0; height: 0; overflow: hidden; }
+</style>
+</head>
+<body>
+
+<svg class="sprite" aria-hidden="true"><defs>
+  <symbol id="apple" viewBox="0 0 24 26">
+    <path d="M12 5.2c-5 0-8 3.2-8 8.2C4 18.2 7.6 23 12 23s8-4.8 8-9.6c0-5-3-8.2-8-8.2z" fill="currentColor"/>
+    <path d="M12 5.2V2.2" stroke="#6b4a2f" stroke-width="1.7" stroke-linecap="round"/>
+    <path d="M12.6 3.4c2.1-.8 3.5.2 3.9 1.6-1.7.7-3.3 0-3.9-1.6z" fill="#4a9a52"/>
+  </symbol>
+  <symbol id="balloon" viewBox="0 0 24 36">
+    <ellipse cx="12" cy="12.5" rx="9" ry="11" fill="currentColor"/>
+    <path d="M12 23.6l-2.1 3.2h4.2z" fill="currentColor" opacity=".75"/>
+    <path d="M12 26.8c3.4 3.6-3.4 5.2 0 8.2" stroke="#8b8b8b" stroke-width="1.1" fill="none"/>
+  </symbol>
+  <symbol id="flower" viewBox="0 0 26 26">
+    <g fill="currentColor">
+      <circle cx="13" cy="6" r="4.8"/><circle cx="20" cy="11" r="4.8"/>
+      <circle cx="17.3" cy="19" r="4.8"/><circle cx="8.7" cy="19" r="4.8"/>
+      <circle cx="6" cy="11" r="4.8"/>
+    </g>
+    <circle cx="13" cy="13" r="3.9" fill="#f7c948"/>
+  </symbol>
+  <symbol id="fish" viewBox="0 0 30 18">
+    <path d="M8 9L1 3.2v11.6z" fill="currentColor" opacity=".8"/>
+    <ellipse cx="16.5" cy="9" rx="11.5" ry="7.6" fill="currentColor"/>
+    <circle cx="22.6" cy="6.8" r="1.5" fill="#fff"/>
+    <path d="M15 5.4c3 1.2 3 6 0 7.2" stroke="#fff" stroke-width="1" fill="none" opacity=".5"/>
+  </symbol>
+  <symbol id="bird" viewBox="0 0 30 22">
+    <ellipse cx="14" cy="13" rx="9" ry="6.4" fill="currentColor"/>
+    <circle cx="21.4" cy="7.6" r="4.3" fill="currentColor"/>
+    <path d="M25.4 7.4l4.4 1.7-4.4 1.7z" fill="#eb9a26"/>
+    <circle cx="22.4" cy="6.9" r=".95" fill="#2b2b2b"/>
+    <path d="M9.6 11c3.2-2.2 6.4-2.2 8.6 0-3.2 1.7-6.4 1.7-8.6 0z" fill="#fff" opacity=".55"/>
+  </symbol>
+  <symbol id="star" viewBox="0 0 24 24">
+    <path d="M12 1.9l3.2 6.6 7.2 1-5.2 5.1 1.2 7.2L12 18.3 5.6 21.7 6.8 14.5 1.6 9.4l7.2-1z" fill="currentColor"/>
+  </symbol>
+  <symbol id="frog" viewBox="0 0 30 24">
+    <ellipse cx="15" cy="15" rx="11" ry="7.5" fill="#7cbf4a"/>
+    <circle cx="8" cy="7" r="4" fill="#8fcf58"/>
+    <circle cx="22" cy="7" r="4" fill="#8fcf58"/>
+    <circle cx="8" cy="7" r="1.7" fill="#25301c"/>
+    <circle cx="22" cy="7" r="1.7" fill="#25301c"/>
+    <path d="M9 17.5c4 2 8 2 12 0" stroke="#4f8a2f" stroke-width="1.3" fill="none" stroke-linecap="round"/>
+  </symbol>
+  <symbol id="rabbit" viewBox="0 0 30 26">
+    <ellipse cx="15" cy="18" rx="8.4" ry="6.6" fill="#e9e4dc"/>
+    <ellipse cx="11.6" cy="6" rx="2.6" ry="5.6" fill="#e9e4dc" stroke="#c9c2b6" stroke-width=".7"/>
+    <ellipse cx="18.6" cy="6" rx="2.6" ry="5.6" fill="#e9e4dc" stroke="#c9c2b6" stroke-width=".7"/>
+    <circle cx="12.2" cy="17" r="1.1" fill="#3a3a3a"/>
+    <circle cx="18" cy="17" r="1.1" fill="#3a3a3a"/>
+    <path d="M14 20.6h2.2" stroke="#d98b8b" stroke-width="1.2" stroke-linecap="round"/>
+  </symbol>
+</defs></svg>
+
+<!-- ================= 第 1 页 ================= -->
+<div class="page">
+
+  <div class="head">
+    <div class="title">一年级上册数学 · 第一、二单元综合闯关</div>
+    <div class="sub">5 以内数的认识和加减法　·　6～10 的认识和加减法　（满分 100 分）</div>
+    <div class="meta">
+      <span>班级 <i class="w55"></i></span>
+      <span>姓名 <i class="w65"></i></span>
+      <span>学号 <i class="w45"></i></span>
+      <span class="score">得分 <i></i></span>
+    </div>
+  </div>
+
+  <!-- 一 -->
+  <div class="h">一、看图写算式。<span class="pt">（每小题 2 分，共 8 分）</span></div>
+  <div class="figs">
+
+    <div class="fig-item">
+      <div class="no">（1）</div>
+      <svg class="fig" viewBox="0 0 315 110">
+        <use href="#apple" x="18"  y="18" width="22" height="24" style="color:#e2564d"/>
+        <use href="#apple" x="48"  y="18" width="22" height="24" style="color:#e2564d"/>
+        <use href="#apple" x="78"  y="18" width="22" height="24" style="color:#e2564d"/>
+        <use href="#apple" x="180" y="18" width="22" height="24" style="color:#7ab648"/>
+        <use href="#apple" x="210" y="18" width="22" height="24" style="color:#7ab648"/>
+        <path d="M10 60 C10 67, 22 70, 108 70 C121 70, 122 72, 130 74 C138 72, 139 70, 152 70 C238 70, 250 67, 250 60"
+              fill="none" stroke="#222" stroke-width="1.4" stroke-linecap="round"/>
+        <text x="130" y="94" font-size="16" text-anchor="middle" font-family="KaiTi, serif">? 个</text>
+      </svg>
+      <div class="eq"><span class="bx"></span><span class="cir"></span><span class="bx"></span><span> = </span><span class="bx"></span></div>
+    </div>
+
+    <div class="fig-item">
+      <div class="no">（2）</div>
+      <svg class="fig" viewBox="0 0 315 110">
+        <text x="14" y="12" font-size="12.5" fill="#444" font-family="KaiTi, serif">一共 8 个</text>
+        <use href="#balloon" x="12"  y="16" width="19" height="28" style="color:#5aa9e6"/>
+        <use href="#balloon" x="38"  y="16" width="19" height="28" style="color:#f0b429"/>
+        <use href="#balloon" x="64"  y="16" width="19" height="28" style="color:#8f7fd6"/>
+        <use href="#balloon" x="90"  y="16" width="19" height="28" style="color:#5aa9e6"/>
+        <use href="#balloon" x="116" y="16" width="19" height="28" style="color:#e2564d"/>
+        <rect x="152" y="12" width="128" height="46" rx="8" fill="none" stroke="#888" stroke-width="1.1" stroke-dasharray="5 4"/>
+        <use href="#balloon" x="166" y="16" width="19" height="28" style="color:#f0b429"/>
+        <use href="#balloon" x="194" y="16" width="19" height="28" style="color:#8f7fd6"/>
+        <use href="#balloon" x="222" y="16" width="19" height="28" style="color:#5aa9e6"/>
+        <text x="216" y="52" font-size="11.5" fill="#666" text-anchor="middle" font-family="KaiTi, serif">飞走了</text>
+        <path d="M14 58 C14 65, 24 68, 60 68 C73 68, 74 70, 82 72 C90 70, 91 68, 104 68 C140 68, 148 65, 148 58"
+              fill="none" stroke="#222" stroke-width="1.4" stroke-linecap="round"/>
+        <text x="81" y="92" font-size="16" text-anchor="middle" font-family="KaiTi, serif">? 个</text>
+      </svg>
+      <div class="eq"><span class="bx"></span><span class="cir"></span><span class="bx"></span><span> = </span><span class="bx"></span></div>
+    </div>
+
+    <div class="fig-item">
+      <div class="no">（3）</div>
+      <svg class="fig" viewBox="0 0 315 110">
+        <text x="150" y="12" font-size="12.5" fill="#444" text-anchor="middle" font-family="KaiTi, serif">7 朵</text>
+        <path d="M34 18h232" stroke="#222" stroke-width="1.2"/>
+        <path d="M34 18v5M266 18v5" stroke="#222" stroke-width="1.2"/>
+        <use href="#flower" x="24"  y="28" width="25" height="25" style="color:#f06292"/>
+        <use href="#flower" x="60"  y="28" width="25" height="25" style="color:#f06292"/>
+        <use href="#flower" x="96"  y="28" width="25" height="25" style="color:#f06292"/>
+        <use href="#flower" x="132" y="28" width="25" height="25" style="color:#f06292"/>
+        <path d="M150 26v44" stroke="#aaa" stroke-width="1" stroke-dasharray="4 4"/>
+        <use href="#flower" x="172" y="28" width="25" height="25" style="color:#ba68c8"/>
+        <use href="#flower" x="206" y="28" width="25" height="25" style="color:#ba68c8"/>
+        <use href="#flower" x="240" y="28" width="25" height="25" style="color:#ba68c8"/>
+        <path d="M168 70 C168 77, 176 80, 200 80 C208 80, 209 82, 216 84 C223 82, 224 80, 232 80 C256 80, 264 77, 264 70"
+              fill="none" stroke="#222" stroke-width="1.4" stroke-linecap="round"/>
+        <text x="216" y="103" font-size="15" text-anchor="middle" font-family="KaiTi, serif">? 朵</text>
+      </svg>
+      <div class="eq"><span class="bx"></span><span class="cir"></span><span class="bx"></span><span> = </span><span class="bx"></span></div>
+    </div>
+
+    <div class="fig-item">
+      <div class="no">（4）</div>
+      <svg class="fig" viewBox="0 0 315 110">
+        <text x="212" y="14" font-size="12" fill="#555" font-family="KaiTi, serif">又飞来 3 只</text>
+        <use href="#bird" x="4"   y="26" width="30" height="22" style="color:#8fb3d9"/>
+        <use href="#bird" x="38"  y="26" width="30" height="22" style="color:#8fb3d9"/>
+        <use href="#bird" x="72"  y="26" width="30" height="22" style="color:#8fb3d9"/>
+        <use href="#bird" x="106" y="26" width="30" height="22" style="color:#8fb3d9"/>
+        <use href="#bird" x="140" y="26" width="30" height="22" style="color:#8fb3d9"/>
+        <use href="#bird" x="174" y="26" width="30" height="22" style="color:#8fb3d9"/>
+        <use href="#bird" x="208" y="26" width="30" height="22" style="color:#e09a5b"/>
+        <use href="#bird" x="242" y="26" width="30" height="22" style="color:#e09a5b"/>
+        <use href="#bird" x="276" y="26" width="30" height="22" style="color:#e09a5b"/>
+        <path d="M8 66 C8 73, 22 76, 120 76 C134 76, 136 78, 154 80 C172 78, 174 76, 188 76 C286 76, 300 73, 300 66"
+              fill="none" stroke="#222" stroke-width="1.4" stroke-linecap="round"/>
+        <text x="154" y="101" font-size="16" text-anchor="middle" font-family="KaiTi, serif">? 只</text>
+      </svg>
+      <div class="eq"><span class="bx"></span><span class="cir"></span><span class="bx"></span><span> = </span><span class="bx"></span></div>
+    </div>
+
+  </div>
+
+  <!-- 二 -->
+  <div class="h">二、□ 里最大能填几？最小能填几？<span class="pt">（每空 1 分，共 12 分）</span></div>
+  <div class="lbl">（1）最大能填几？</div>
+  <div class="grid6">
+    <div class="cell">7 &gt; <span class="bx"></span> + 3</div>
+    <div class="cell"><span class="bx"></span> − 4 &lt; 5</div>
+    <div class="cell">2 + <span class="bx"></span> &lt; 9</div>
+    <div class="cell">10 − <span class="bx"></span> &gt; 4</div>
+    <div class="cell">6 &gt; <span class="bx"></span> &gt; 2</div>
+    <div class="cell"><span class="bx"></span> + 5 &lt; 10</div>
+  </div>
+  <div class="lbl">（2）最小能填几？</div>
+  <div class="grid6">
+    <div class="cell">3 + <span class="bx"></span> &gt; 6</div>
+    <div class="cell"><span class="bx"></span> − 2 &gt; 4</div>
+    <div class="cell">8 − <span class="bx"></span> &lt; 3</div>
+    <div class="cell">4 &lt; <span class="bx"></span> &lt; 8</div>
+    <div class="cell">9 &gt; <span class="bx"></span> &gt; 5</div>
+    <div class="cell"><span class="bx"></span> − 3 &gt; 3</div>
+  </div>
+
+  <!-- 三 -->
+  <div class="h">三、比一比，在 ○ 里填上 &gt;、&lt; 或 =。<span class="pt">（每题 1 分，共 10 分）</span></div>
+  <div class="grid5">
+    <div class="cell">4 + 3 <span class="cir"></span> 8 − 2</div>
+    <div class="cell">9 − 4 <span class="cir"></span> 2 + 3</div>
+    <div class="cell">6 + 2 <span class="cir"></span> 10 − 1</div>
+    <div class="cell">5 + 5 <span class="cir"></span> 9</div>
+    <div class="cell">0 + 6 <span class="cir"></span> 6 − 0</div>
+    <div class="cell">7 − 3 <span class="cir"></span> 7 − 4</div>
+    <div class="cell">4 + 5 <span class="cir"></span> 3 + 6</div>
+    <div class="cell">10 − 4 <span class="cir"></span> 2 + 3</div>
+    <div class="cell">8 − 8 <span class="cir"></span> 0 + 1</div>
+    <div class="cell">3 + 4 <span class="cir"></span> 2 + 6</div>
+  </div>
+
+  <!-- 四 -->
+  <div class="h">四、在 □ 里填上合适的数。<span class="pt">（每空 1 分，共 10 分）</span></div>
+  <div class="grid5">
+    <div class="cell">5 + <span class="bx"></span> = 9</div>
+    <div class="cell">6 − <span class="bx"></span> = 2</div>
+    <div class="cell"><span class="bx"></span> − 3 = 7</div>
+    <div class="cell">8 + <span class="bx"></span> = 10</div>
+    <div class="cell">9 − <span class="bx"></span> = 4</div>
+    <div class="cell"><span class="bx"></span> + 0 = 6</div>
+    <div class="cell">6 + <span class="bx"></span> = 4 + 5</div>
+    <div class="cell">10 − <span class="bx"></span> = 3 + 3</div>
+    <div class="cell"><span class="bx"></span> + 2 = 8 − 1</div>
+    <div class="cell">7 − <span class="bx"></span> = 1 + 4</div>
+  </div>
+
+  <!-- 五 -->
+  <div class="h">五、数一数，填一填。<span class="pt">（每空 1 分，共 10 分）</span></div>
+  <div class="plates">
+    <svg viewBox="0 0 100 74">
+      <ellipse cx="50" cy="64" rx="42" ry="7.5" fill="#e6edf5" stroke="#a9bccf" stroke-width="1.2"/>
+      <use href="#apple" x="39" y="12" width="21" height="23" style="color:#e2564d"/>
+      <use href="#apple" x="24" y="33" width="21" height="23" style="color:#e2564d"/>
+      <use href="#apple" x="54" y="33" width="21" height="23" style="color:#e2564d"/>
+    </svg>
+    <svg viewBox="0 0 100 74">
+      <ellipse cx="50" cy="64" rx="42" ry="7.5" fill="#e6edf5" stroke="#a9bccf" stroke-width="1.2"/>
+      <use href="#apple" x="39" y="28" width="21" height="23" style="color:#e2564d"/>
+    </svg>
+    <svg viewBox="0 0 100 74">
+      <ellipse cx="50" cy="64" rx="42" ry="7.5" fill="#e6edf5" stroke="#a9bccf" stroke-width="1.2"/>
+      <use href="#apple" x="24" y="6"  width="21" height="23" style="color:#e2564d"/>
+      <use href="#apple" x="50" y="6"  width="21" height="23" style="color:#e2564d"/>
+      <use href="#apple" x="76" y="6"  width="21" height="23" style="color:#e2564d"/>
+      <use href="#apple" x="37" y="30" width="21" height="23" style="color:#e2564d"/>
+      <use href="#apple" x="63" y="30" width="21" height="23" style="color:#e2564d"/>
+    </svg>
+    <svg viewBox="0 0 100 74">
+      <ellipse cx="50" cy="64" rx="42" ry="7.5" fill="#e6edf5" stroke="#a9bccf" stroke-width="1.2"/>
+      <use href="#apple" x="28" y="24" width="21" height="23" style="color:#e2564d"/>
+      <use href="#apple" x="54" y="24" width="21" height="23" style="color:#e2564d"/>
+    </svg>
+    <svg viewBox="0 0 100 74">
+      <ellipse cx="50" cy="64" rx="42" ry="7.5" fill="#e6edf5" stroke="#a9bccf" stroke-width="1.2"/>
+      <use href="#apple" x="28" y="12" width="21" height="23" style="color:#e2564d"/>
+      <use href="#apple" x="56" y="12" width="21" height="23" style="color:#e2564d"/>
+      <use href="#apple" x="28" y="35" width="21" height="23" style="color:#e2564d"/>
+      <use href="#apple" x="56" y="35" width="21" height="23" style="color:#e2564d"/>
+    </svg>
+    <svg viewBox="0 0 100 74">
+      <ellipse cx="50" cy="64" rx="42" ry="7.5" fill="#e6edf5" stroke="#a9bccf" stroke-width="1.2"/>
+      <use href="#apple" x="20" y="6"  width="21" height="23" style="color:#e2564d"/>
+      <use href="#apple" x="43" y="6"  width="21" height="23" style="color:#e2564d"/>
+      <use href="#apple" x="66" y="6"  width="21" height="23" style="color:#e2564d"/>
+      <use href="#apple" x="20" y="30" width="21" height="23" style="color:#e2564d"/>
+      <use href="#apple" x="43" y="30" width="21" height="23" style="color:#e2564d"/>
+      <use href="#apple" x="66" y="30" width="21" height="23" style="color:#e2564d"/>
+    </svg>
+  </div>
+
+  <div class="qline">（1）一共有（　　）盘苹果。</div>
+  <div class="qline">（2）从左边数，第 3 盘有（　　）个苹果；第（　　）盘有 3 个苹果，它们合起来有（　　）个。</div>
+  <div class="qline">（3）从右边数，有 4 个苹果的是第（　　）盘，它左边一盘有（　　）个，右边一盘有（　　）个。</div>
+  <div class="qline">（4）从右边数，第 1 盘和第（　　）盘合起来是 8 个；圈出数量最多的一盘，再在从右边数第 2 盘的下面画“△”。</div>
+
+  <!-- 六 -->
+  <div class="h">六、想一想，填一填。<span class="pt">（每空 1 分，共 8 分）</span></div>
+  <div class="q6">
+    <div class="li">（1）与 8 相邻的两个数是（　　）和（　　），这两个数中较大的是（　　）。</div>
+    <div class="li">（2）10 前面第 3 个数是（　　），6 后面第 2 个数是（　　）。</div>
+    <div class="li">（3）一个数比 6 大、比 9 小，这个数可能是（　　）或（　　）。</div>
+    <div class="li">（4）从 2 开始一个一个地往后数，数到 6 要数（　　）个数。</div>
+  </div>
+
+  <div class="endline">第 1 页 · 共 2 页</div>
+</div>
+
+<!-- ================= 第 2 页 ================= -->
+<div class="page" id="p2">
+
+  <!-- 七 -->
+  <div class="h">七、看图填一填。<span class="pt">（每空 2 分，共 4 分）</span></div>
+
+  <div class="lbl">（1）小青蛙从 0 出发，跳 2 次后跳到（　　）。</div>
+  <svg class="fig" viewBox="0 0 660 88" style="width:100%;height:auto">
+    <use href="#frog" x="0" y="0" width="27" height="22"/>
+    <path d="M22 58h612" stroke="#333" stroke-width="1.4"/>
+    <g stroke="#333" stroke-width="1.3">
+      <path d="M22 53v10"/><path d="M83 53v10"/><path d="M144 53v10"/><path d="M205 53v10"/>
+      <path d="M266 53v10"/><path d="M327 53v10"/><path d="M388 53v10"/><path d="M449 53v10"/>
+      <path d="M510 53v10"/><path d="M571 53v10"/><path d="M632 53v10"/>
+    </g>
+    <g font-size="14" text-anchor="middle" font-family="KaiTi, serif">
+      <text x="22" y="80">0</text><text x="83" y="80">1</text><text x="144" y="80">2</text>
+      <text x="205" y="80">3</text><text x="266" y="80">4</text><text x="327" y="80">5</text>
+      <text x="388" y="80">6</text><text x="449" y="80">7</text><text x="510" y="80">8</text>
+      <text x="571" y="80">9</text><text x="632" y="80">10</text>
+    </g>
+    <path d="M32 55Q113 22 193 55" fill="none" stroke="#4a8ec2" stroke-width="1.7"/>
+    <path d="M196 55l-10-6.2v12.4z" fill="#4a8ec2"/>
+
+  </svg>
+
+  <div class="lbl" style="margin-top:3px">（2）小兔从 10 出发，每次往回跳 2 格，跳 3 次后跳到（　　）。</div>
+  <svg class="fig" viewBox="0 0 660 88" style="width:100%;height:auto">
+    <use href="#rabbit" x="616" y="0" width="28" height="24"/>
+    <path d="M22 58h612" stroke="#333" stroke-width="1.4"/>
+    <g stroke="#333" stroke-width="1.3">
+      <path d="M22 53v10"/><path d="M83 53v10"/><path d="M144 53v10"/><path d="M205 53v10"/>
+      <path d="M266 53v10"/><path d="M327 53v10"/><path d="M388 53v10"/><path d="M449 53v10"/>
+      <path d="M510 53v10"/><path d="M571 53v10"/><path d="M632 53v10"/>
+    </g>
+    <g font-size="14" text-anchor="middle" font-family="KaiTi, serif">
+      <text x="22" y="80">0</text><text x="83" y="80">1</text><text x="144" y="80">2</text>
+      <text x="205" y="80">3</text><text x="266" y="80">4</text><text x="327" y="80">5</text>
+      <text x="388" y="80">6</text><text x="449" y="80">7</text><text x="510" y="80">8</text>
+      <text x="571" y="80">9</text><text x="632" y="80">10</text>
+    </g>
+    <path d="M622 55Q571 24 520 55" fill="none" stroke="#c2703c" stroke-width="1.7"/>
+    <path d="M517 55l10-6.2v12.4z" fill="#c2703c"/>
+
+  </svg>
+
+  <!-- 八 -->
+  <div class="h">八、填数阵：使每条线上三个数的和都等于 9。<span class="pt">（每空 2 分，共 6 分）</span></div>
+  <svg class="fig" viewBox="0 0 340 186" style="width:250px;height:auto;margin:0 auto">
+    <g stroke="#9aa7b4" stroke-width="1.3">
+      <path d="M170 29v126"/>
+      <path d="M115 60.5L225 123.5"/>
+      <path d="M225 60.5L115 123.5"/>
+    </g>
+    <g fill="#fff" stroke="#333" stroke-width="1.5">
+      <circle cx="170" cy="29"  r="25"/>
+      <circle cx="170" cy="92"  r="25" fill="#fff8e1"/>
+      <circle cx="170" cy="155" r="25"/>
+      <circle cx="115" cy="60.5"  r="25"/>
+      <circle cx="225" cy="123.5" r="25"/>
+      <circle cx="225" cy="60.5"  r="25"/>
+      <circle cx="115" cy="123.5" r="25"/>
+    </g>
+    <g font-size="17" text-anchor="middle" font-family="KaiTi, serif" fill="#111">
+      <text x="170" y="35">1</text>
+      <text x="170" y="98">3</text>
+      <text x="170" y="161">□</text>
+      <text x="115" y="66.5">2</text>
+      <text x="225" y="129.5">□</text>
+      <text x="225" y="66.5">□</text>
+      <text x="115" y="129.5">6</text>
+    </g>
+  </svg>
+
+  <!-- 九 -->
+  <div class="h">九、选一选（把序号填在括号里）。<span class="pt">（每题 2 分，共 6 分）</span></div>
+
+  <div class="prob">
+    <div class="stem">（1）按 9、8、7、6…… 这样数，6 前面的数和 6 后面的数比，（　　）大。</div>
+    <div class="opts"><span>① 6 前面的数</span><span>② 6 后面的数</span><span>③ 一样大</span></div>
+  </div>
+
+  <div class="prob">
+    <div class="stem">（2）小云家楼下有 5 层，楼上有 3 层，她家住在第（　　）层。</div>
+    <div class="opts"><span>① 5</span><span>② 6</span><span>③ 7</span></div>
+  </div>
+
+  <div class="prob">
+    <div class="stem">（3）8 名男生站成一排，老师让每 2 名男生之间站 1 名女生，一共要站（　　）名女生。</div>
+    <div class="opts"><span>① 7</span><span>② 8</span><span>③ 9</span></div>
+  </div>
+
+  <!-- 十 -->
+  <div class="h">十、看图列式。<span class="pt">（每题 4 分，共 8 分）</span></div>
+
+  <div class="lbl">（1）根据下图写出 4 道算式。</div>
+  <svg class="fig" viewBox="0 0 660 78" style="width:100%;height:auto;margin-top:-10px">
+    <rect x="4"   y="6" width="300" height="62" rx="9" fill="#fff" stroke="#9aa7b4" stroke-width="1.2" stroke-dasharray="6 5"/>
+    <rect x="352" y="6" width="300" height="62" rx="9" fill="#fff" stroke="#9aa7b4" stroke-width="1.2" stroke-dasharray="6 5"/>
+    <use href="#star" x="28"  y="24" width="24" height="24" style="color:#f0b429"/>
+    <use href="#star" x="66"  y="24" width="24" height="24" style="color:#f0b429"/>
+    <use href="#star" x="104" y="24" width="24" height="24" style="color:#f0b429"/>
+    <use href="#star" x="142" y="24" width="24" height="24" style="color:#f0b429"/>
+    <use href="#star" x="180" y="24" width="24" height="24" style="color:#f0b429"/>
+    <use href="#star" x="376" y="24" width="24" height="24" style="color:#f0b429"/>
+    <use href="#star" x="414" y="24" width="24" height="24" style="color:#f0b429"/>
+    <use href="#star" x="452" y="24" width="24" height="24" style="color:#f0b429"/>
+    <use href="#star" x="490" y="24" width="24" height="24" style="color:#f0b429"/>
+  </svg>
+  <div class="grid4" style="margin-top:2px">
+    <div class="cell eq" style="justify-content:flex-start"><span class="bx w"></span>+<span class="bx w"></span>=<span class="bx w"></span></div>
+    <div class="cell eq" style="justify-content:flex-start"><span class="bx w"></span>+<span class="bx w"></span>=<span class="bx w"></span></div>
+    <div class="cell eq" style="justify-content:flex-start"><span class="bx w"></span>−<span class="bx w"></span>=<span class="bx w"></span></div>
+    <div class="cell eq" style="justify-content:flex-start"><span class="bx w"></span>−<span class="bx w"></span>=<span class="bx w"></span></div>
+  </div>
+
+  <div class="lbl" style="margin-top:4px">（2）先看总数，再列式。</div>
+  <svg class="fig" viewBox="0 0 660 68" style="width:100%;height:auto;margin-top:-14px">
+    <use href="#fish" x="18"  y="8"  width="30" height="18" style="color:#5aa9e6"/>
+    <use href="#fish" x="60"  y="8"  width="30" height="18" style="color:#5aa9e6"/>
+    <use href="#fish" x="102" y="8"  width="30" height="18" style="color:#5aa9e6"/>
+    <use href="#fish" x="144" y="8"  width="30" height="18" style="color:#5aa9e6"/>
+    <use href="#fish" x="186" y="8"  width="30" height="18" style="color:#5aa9e6"/>
+    <use href="#fish" x="18"  y="38" width="30" height="18" style="color:#7ab648"/>
+    <use href="#fish" x="60"  y="38" width="30" height="18" style="color:#7ab648"/>
+    <use href="#fish" x="102" y="38" width="30" height="18" style="color:#7ab648"/>
+    <use href="#fish" x="144" y="38" width="30" height="18" style="color:#7ab648"/>
+    <text x="244" y="30" font-size="14.5" fill="#333" font-family="KaiTi, serif">一共 9 条，游走 4 条，</text>
+    <text x="244" y="52" font-size="14.5" fill="#333" font-family="KaiTi, serif">还剩几条？</text>
+  </svg>
+  <div class="eq" style="justify-content:flex-start;margin-top:1px">
+    <span class="bx w"></span>−<span class="bx w"></span>=<span class="bx w"></span>
+    <span style="margin-left:8px">（条）</span>
+  </div>
+
+  <!-- 十一 -->
+  <div class="h">十一、解决问题。<span class="pt">（每题 5 分，共 10 分）</span></div>
+
+  <div class="prob">
+    <div class="stem">（1）<ruby>小<rt>xiǎo</rt></ruby><ruby>兰<rt>lán</rt></ruby>摘了 5 朵花，小红和小兰摘得同样多。两人一共摘了多少朵？</div>
+    <div class="ansline">算式：<span class="bx w"></span> <span>○</span> <span class="bx w"></span> = <span class="bx w"></span> （朵）</div>
+  </div>
+
+  <div class="prob">
+    <div class="stem">（2）班级图书角有 9 本书，借走 4 本，还剩多少本？</div>
+    <div class="ansline">算式：<span class="bx w"></span> <span>○</span> <span class="bx w"></span> = <span class="bx w"></span> （本）</div>
+  </div>
+
+  <!-- 十二 -->
+  <div class="h">十二、挑战题 ★<span class="pt">（每题 4 分，共 8 分）</span></div>
+
+  <div class="prob">
+    <div class="stem">（1）把 1、2、3、7、8、9 填在（　　）里，使等式成立（每个数只能用一次）。</div>
+    <div style="margin-top:1px;font-size:15.5px">4 + 6 =（　　）+（　　）=（　　）+（　　）=（　　）+（　　）</div>
+  </div>
+
+  <div class="prob">
+    <div class="stem">（2）盒子里有 5 颗糖，妈妈又放进 4 颗，小明吃了 3 颗，还剩（　　）颗。</div>
+  </div>
+
+  <div class="endline">第 2 页 · 共 2 页　　—— 全卷完 ——</div>
+</div>
+
+<div class="hint">
+  <b>打印说明</b>：用 Edge / Chrome 打开本文件 → Ctrl+P → 纸张 A4、缩放 100%、<b>页边距选「无」</b>、勾选「背景图形」→ 正好 2 页。若出现空白第 3 页，把缩放调到 98% 再打印。
+</div>
+</body>
+</html>
