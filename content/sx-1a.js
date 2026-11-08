@@ -214,7 +214,7 @@
             }),
             M({
               skill: '5以内.看图列式', level: 2,
-              stem: '看图列式，□ 里填几？',
+              stem: '看图列式，一共是几？',
               fig: { type: 'eq', a: 2, b: 2, op: '+', blank: 'result' },
               answer: 4, unit: '', explain: '2 + 2 = 4。'
             }),
@@ -331,10 +331,10 @@
               explain: '6、7、8，7 的前面是 6。'
             }),
             M({
-              skill: '10以内.认数', level: 2,
-              stem: '8 里面有 8 个一，还可以说 8 里面有几个一和几个一？',
-              options: ['8 个一', '4 个一', '7 个一'], answer: 0,
-              explain: '8 就是 8 个一。'
+              skill: '10以内.数序', level: 2,
+              stem: '比 6 大 2 的数是几？',
+              options: ['7', '8', '9'], answer: 1,
+              explain: '从 6 往后数 2 个：7、8，所以是 8。'
             }),
             M({
               skill: '10以内.数的组成', level: 2,
@@ -416,7 +416,7 @@
             TPL.sub({ a: 7, b: 3, name: '桃子', icon: '🍑', verb: '吃' }),
             M({
               skill: '10以内.看图列式', level: 2,
-              stem: '看图列式，□ 里填几？',
+              stem: '看图列式，合起来是多少？',
               fig: { type: 'eq', a: 3, b: 4, op: '+', blank: 'result' },
               answer: 7, unit: '', explain: '3 + 4 = 7。'
             }),
@@ -1392,6 +1392,38 @@
     { unit: 'u4', tier: 'w20', base: 2 },
     { unit: 'u5', tier: 'w20', base: 2 },
     { unit: 'u6', tier: 'w20', base: 3 }
+  ]);
+
+  /* 思维挑战题：照一上第 9、10 周「周末大闯关」的题型铺开。
+     · 第 9/10 周正学到 6~10，u2/u3 全用 10 以内，和卷子同步
+     · 后面学到 11~20、进位加法了，数域放宽到 20 以内
+     · 准备课和 5 以内那两单元还没学加减，不出这类题 */
+  w.SXBuilder.challengeDecorate(UNITS, [
+    { unit: 'u2', max: 10, count: 2 },
+    { unit: 'u3', max: 10, count: 2 },
+    { unit: 'u4', max: 20, count: 2 },
+    { unit: 'u5', max: 20, count: 2 },
+    { unit: 'u6', max: 20, count: 2 }
+  ]);
+
+  /* 单元知识点题：把第 9/10 周「周末大闯关」的题型做数值 / 情境变式，
+     分散铺到 5 以内、6~10 两单元；后面学到的立体图形、11~20、进位加法
+     换成网上同步题（立体图形特征与堆叠计数、数的组成与位值、凑十法、
+     排队与移多补少），每课 2 道，跟着教材进度走，不集中成一张卷子。 */
+  w.SXBuilder.packDecorate(UNITS, [
+    { unit: 'u1', tag: '1a', cap: 5, count: 2, from: 4,
+      keys: ['ineq', 'adjacent', 'same', 'picture', 'cmpExpr', 'reverse'] },
+    { unit: 'u2', tag: '1a', cap: 10, count: 2,
+      keys: ['ineq', 'eqboth', 'adjacent', 'plates', 'jump', 'array9', 'interval',
+        'countdown', 'same', 'makeEq', 'reverse', 'picture', 'cmpExpr'] },
+    { unit: 'u3', tag: '1a', cap: 10, count: 2,
+      keys: ['shape3d', 'plates', 'interval', 'picture'] },
+    { unit: 'u4', tag: '1a', cap: 20, count: 2,
+      keys: ['teens', 'adjacent', 'cmpExpr', 'interval'] },
+    { unit: 'u5', tag: '1a', cap: 20, count: 2,
+      keys: ['carry', 'same', 'reverse', 'picture', 'interval', 'makeEq'] },
+    { unit: 'u6', tag: '1a', cap: 20, count: 2,
+      keys: ['mixed', 'array9', 'jump', 'makeEq', 'reverse', 'cmpExpr'] }
   ]);
 
   w.CONTENT = w.CONTENT || {};

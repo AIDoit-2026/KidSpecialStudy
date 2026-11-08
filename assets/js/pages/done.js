@@ -75,13 +75,11 @@
 
     var actions = U.h('div', { class: 'row', style: { justifyContent: 'center', marginTop: '20px', flexWrap: 'wrap' } });
     actions.appendChild(U.h('button', { class: 'btn btn-primary btn-lg', text: '回到首页', onclick: function () { App.go('#/today'); } }));
-    if (sum.planned > sum.doneCount) {
+    var nextSlot = w.Task.currentSlot(date);
+    if (nextSlot >= 0) {
       actions.appendChild(U.h('button', {
         class: 'btn btn-lg', text: '继续下一场 →',
-        onclick: function () {
-          var next = sum.doneCount;
-          App.go('#/practice?slot=' + next);
-        }
+        onclick: function () { App.go('#/practice?slot=' + w.Task.currentSlot(date)); }
       }));
     }
     actions.appendChild(U.h('button', { class: 'btn btn-ghost btn-lg', text: '看成长记录', onclick: function () { App.go('#/growth'); } }));

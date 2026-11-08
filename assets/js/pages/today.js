@@ -34,8 +34,9 @@
     }
     return {
       chars: cnt(items.chars), pinyin: cnt(items.pinyin), math: cnt(items.math),
-      // 写字按「一张照片」计数：拍一张就覆盖整场的所有字，分子分母都用照片数
-      writing: { done: s.photoId ? 1 : 0, total: 1, chars: (s.chars || []).length }
+      // 写字按「一张照片」计数：拍一张就覆盖整场的所有字；家长跳过也算完成。
+      // AI / 家长有没有点评不影响这个进度。
+      writing: { done: w.Task.writingOK(s) ? 1 : 0, total: 1, chars: (s.chars || []).length }
     };
   }
 
@@ -49,13 +50,9 @@
     var sum = w.Task.summary(date);
     var settings = w.Store.settings();
 
-    var curIdx = 0;
-    (day.plan || []).forEach(function (s, i) { if (s.status !== 'done' && curIdx === i) curIdx = i; });
-    for (var i = 0; i < (day.plan || []).length; i++) {
-      if (day.plan[i].status !== 'done') { curIdx = i; break; }
-      curIdx = i + 1;
-    }
-    if (curIdx >= (day.plan || []).length) curIdx = (day.plan || []).length - 1;
+    /* 当前该做哪一场：和「开始练习」侧栏、练习页用同一个口径，避免各处算出不同场次 */
+    var curIdx = w.Task.currentSlot(date);
+    if (curIdx < 0) curIdx = (day.plan || []).length - 1;   // 全部完成就展示最后一场的进度
     var cur = (day.plan || [])[curIdx] || null;
 
     /* ---- Hero ---- */
@@ -216,7 +213,9 @@
           ? cur.chars.length + ' 个字：' + cur.chars.slice(0, 4).join(' ')
           : '本场无写字',
         done: pr.writing.done, total: pr.writing.total,
-        num: !cur.chars.length ? '本场无需拍照' : (pr.writing.done ? '✓ 已上传 1 张' : '拍 1 张就够'),
+        num: !cur.chars.length ? '本场无需拍照'
+          : cur.writingSkipped ? '✓ 家长已跳过'
+          : pr.writing.done ? '✓ 写字已完成' : '拍 1 张就够',
         onClick: function () { App.go('#/writing?slot=' + curIdx); }
       }));
     }

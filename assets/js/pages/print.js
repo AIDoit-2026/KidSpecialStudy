@@ -74,10 +74,11 @@
 
   function render(view, query) {
     var date = U.today();
-    var slot = Number(query.slot || 0);
+    var day = w.Task.ensure(date);
+    var slot = (query.slot === undefined || query.slot === '')
+      ? Math.max(0, w.Task.currentSlot(date)) : Number(query.slot);
     var mode = query.mode || 'all';
     var kid = w.Store.kids.active();
-    var day = w.Task.ensure(date);
     var session = day.plan[slot];
 
     /* 三种来源：默认今日某场 / ids=错题复习单 / node=指定节点 */

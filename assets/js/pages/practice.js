@@ -134,12 +134,31 @@
   /* ---------------- 页面 ---------------- */
   function render(view, query) {
     var date = U.today();
-    var slot = Number(query.slot || 0);
     var moduleFilter = query.module || null;
     var redoIds = query.ids ? query.ids.split(',').filter(Boolean) : null;
     var day = w.Task.ensure(date);
     var session;
     var queue;
+
+    /* 侧栏「开始练习」的链接不带 slot，浏览器后退也可能退到旧的第 1 场链接。
+       两者都统一落到「当前该做的那一场」，别让孩子做完一场后又看见第一场。 */
+    var slot = (query.slot === undefined || query.slot === '')
+      ? w.Task.currentSlot(date) : Number(query.slot);
+    if (!redoIds) {
+      if (slot < 0 || !day.plan[slot] || day.plan[slot].status === 'done') slot = w.Task.currentSlot(date);
+      if (slot < 0) {
+        view.appendChild(U.h('div', { class: 'card' },
+          U.h('div', { class: 'empty' },
+            U.h('span', { class: 'e-emoji', text: '🎉' }),
+            U.h('div', { text: '今天的场次都做完啦，明天见！' }),
+            U.h('button', {
+              class: 'btn btn-primary', style: { marginTop: '12px' }, text: '回到首页',
+              onclick: function () { App.go('#/today'); }
+            })
+          )));
+        return;
+      }
+    } else if (slot < 0) slot = 0;
 
     /* 连着练到第 3 场：进来先提醒休息。
        选「接着练」会记下这场已提醒过，重绘时就不会再拦。 */
@@ -435,9 +454,10 @@
       var total = s.items.chars.length + s.items.pinyin.length + s.items.math.length;
 
       if (answeredNow >= total) {
-        // 三科做完 → 去写字
-        if (s.chars.length) { App.go('#/writing?slot=' + slot); return; }
-        // 没有写字任务，直接完成
+        // 三科做完 → 只有写字任务还没交（也没被家长跳过）时才去写字页。
+        // 照片交过、AI 还在评分，或者家长已跳过写字，都不该再把孩子送回写字页。
+        if (s.chars.length && !w.Task.writingOK(s)) { App.go('#/writing?slot=' + slot); return; }
+        // 没有写字任务 / 写字已完成，直接完成本场
         w.Task.completeSlot(date, slot, { ms: Date.now() - state.startedAt });
         App.go('#/done?slot=' + slot);
         return;

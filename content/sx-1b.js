@@ -37,7 +37,7 @@
             }),
             M({
               skill: '图形.数图形', level: 2,
-              stem: '图中有几个三角形？', fig: { type: 'shapes', list: ['triangle', 'rect', 'triangle', 'circle'] },
+              stem: '下面一排图形里有几个三角形？', fig: { type: 'shapes', list: ['triangle', 'rect', 'triangle', 'circle'] },
               answer: 2, unit: '个', explain: '第一个和第三个是三角形。'
             })
           ]
@@ -437,7 +437,7 @@
             }),
             M({
               skill: '分类.按形状', level: 2,
-              stem: '图中有几个三角形？', fig: { type: 'shapes', list: ['triangle', 'rect', 'triangle'] },
+              stem: '数一数，三角形有几个？', fig: { type: 'shapes', list: ['triangle', 'rect', 'triangle'] },
               answer: 2, unit: '个', explain: '第 1、3 个是三角形。'
             }),
             M({
@@ -787,7 +787,7 @@
             }),
             M({
               skill: '人民币.认识', level: 2,
-              stem: '1 元 = 几角？',
+              stem: '1 元等于多少角？',
               answer: 10, unit: '角', explain: '1 元 = 10 角。'
             })
           ]
@@ -1427,6 +1427,36 @@
     { unit: 'u6', tier: 'w100e', base: 2 },
     { unit: 'u7', tier: 'w100', base: 1 },
     { unit: 'u8', tier: 'w100', base: 3 }
+  ]);
+
+  /* 思维挑战题：一下每课保温 1 道，数域仍限 20 以内
+     （100 以内那几单元难在竖式，不靠加大数字来堆难度） */
+  w.SXBuilder.challengeDecorate(UNITS, [
+    { unit: 'u1', max: 20, count: 1 },
+    { unit: 'u2', max: 20, count: 1 },
+    { unit: 'u3', max: 20, count: 1 },
+    { unit: 'u4', max: 20, count: 1 },
+    { unit: 'u5', max: 20, count: 1 },
+    { unit: 'u6', max: 20, count: 1 },
+    { unit: 'u7', max: 20, count: 1 },
+    { unit: 'u8', max: 20, count: 1 }
+  ]);
+
+  /* 单元知识点题：一下各单元按知识点配题——平面图形与折拼、破十法与
+     想加算减、分类整理、100 以内数的组成与数位、人民币换算、两位数
+     加减、数列规律、总复习综合。每课 2 道，数域跟着单元走。 */
+  w.SXBuilder.packDecorate(UNITS, [
+    { unit: 'u1', tag: '1b', cap: 20, count: 2, keys: ['plane', 'pattern', 'sort'] },
+    { unit: 'u2', tag: '1b', cap: 20, count: 2, keys: ['borrow', 'reverse', 'cmpExpr', 'same'] },
+    { unit: 'u3', tag: '1b', cap: 20, count: 2, keys: ['sort', 'picture', 'plane'] },
+    { unit: 'u4', tag: '1b', cap: 100, count: 2,
+      keys: ['hundreds', 'pattern', 'adjacent'] },
+    { unit: 'u5', tag: '1b', cap: 100, count: 2, keys: ['money', 'reverse', 'same'] },
+    { unit: 'u6', tag: '1b', cap: 100, count: 2,
+      keys: ['addsub100', 'ineq', 'mixed', 'pattern'] },
+    { unit: 'u7', tag: '1b', cap: 100, count: 2, keys: ['pattern', 'plane', 'sort'] },
+    { unit: 'u8', tag: '1b', cap: 100, count: 2,
+      keys: ['final', 'mixed', 'pattern', 'addsub100'] }
   ]);
 
   w.CONTENT = w.CONTENT || {};

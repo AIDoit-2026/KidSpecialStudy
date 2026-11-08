@@ -71,6 +71,8 @@
       U.h('div', { class: 'k', text: '欠账' }), U.h('div', { text: sum.backlog ? sum.backlog + ' 场（' + (sum.eta && sum.eta.date ? '预计 ' + U.fmtCn(sum.eta.date) + ' 补完' : '假期补练') + '）' : '没有欠账' }),
       U.h('div', { class: 'k', text: '待批改' }), U.h('div', { text: pending.length ? pending.length + ' 条作业' : '没有' })
     ));
+    c.appendChild(U.h('div', { class: 'small muted', style: { marginTop: '8px' },
+      text: '写字交了照片就算完成，AI / 家长点评是另一回事，不影响打卡；今天不想写，可在写字页由家长输密码跳过。' }));
     var ops = U.h('div', { class: 'row wrap', style: { marginTop: '12px' } });
     if (pending.length) {
       ops.appendChild(U.h('button', {

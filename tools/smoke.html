@@ -116,6 +116,74 @@
       return it && (it.type === 'cmp' || Task.isCalcMath(it));
     }), '新增 ' + extraMath + ' 道');
 
+    /* 同一天连做 3 场：以前补位池只在单场内去重，尾部几道会一场场原样重复。
+       周末 / 节假日走的是另一组容量设置，四档一起钉成 3 场，断言才不挑日期。 */
+    var st0 = Store.settings();
+    Store.saveSettings({
+      workCapacity: 3, satCapacity: 3, sunCapacity: 3, holidayCapacity: 3
+    });
+    var multi = Task.buildPlan(U.today());
+    var seen3 = {}, seenSig3 = {}, dup3 = 0, sameSig3 = 0;
+    multi.forEach(function (s) {
+      Task.sessionItems(s).forEach(function (it) {
+        if (seen3[it.id]) dup3++;
+        seen3[it.id] = 1;
+        /* 只按 id 去重不够：不同 id 但题干选项完全一样的题，孩子看到就是原题 */
+        var k = String(it.stem || '').replace(/\s+/g, '') + '|' + (it.options || []).join('|');
+        if (seenSig3[k]) sameSig3++;
+        seenSig3[k] = 1;
+      });
+    });
+    ok('同日多场互不出重题', multi.length >= 3 && dup3 === 0,
+      multi.length + ' 场 / 重复 ' + dup3 + ' 道');
+    ok('同日多场无完全重复题（按题干和选项）', sameSig3 === 0, '重复 ' + sameSig3 + ' 道');
+    Store.saveSettings({
+      workCapacity: st0.workCapacity, satCapacity: st0.satCapacity,
+      sunCapacity: st0.sunCapacity, holidayCapacity: st0.holidayCapacity
+    });
+    /* 学到 6~10 之后，每场带 1~2 道试卷同款思维题 */
+    var fakeProg = {
+      bookId: 'yw-1a', yw: { unit: 0, node: 0 }, sx: { unit: 2, node: 0 },
+      writingCursor: 0, startDate: U.today(), sessionsDone: 0, archive: {}
+    };
+    var chCounts = Task.buildPlan(U.today(), fakeProg).map(function (s) {
+      return s.items.math.filter(function (id) {
+        var it = Content.item(id); return it && it.type === 'challenge';
+      }).length;
+    });
+    ok('6~10 单元每场 1~2 道思维题',
+      chCounts.length > 0 && chCounts.every(function (n) { return n >= 1 && n <= 2; }),
+      chCounts.join(','));
+    /* 试卷变式题不集中成卷，每场定点带 1~2 道，剩下的分散在后面课次 */
+    var upCounts = Task.buildPlan(U.today(), fakeProg).map(function (s) {
+      return s.items.math.filter(function (id) {
+        var it = Content.item(id); return it && it.type === 'unit';
+      }).length;
+    });
+    ok('6~10 单元每场 1~2 道单元知识点题',
+      upCounts.length > 0 && upCounts.every(function (n) { return n >= 1 && n <= 2; }),
+      upCounts.join(','));
+
+    /* 补位只能借「已经学过的数」：5 以内阶段不能冒出 6~10，
+       图形阶段不能冒出 11~20。各单元自己的题本来就守着数域，
+       所以第 1 场一旦出现超域数字，一定是补位池借错了课文。 */
+    var NUM_CAP = [5, 5, 10, 10, 20, 20, 20];
+    var capBad = 0;
+    [0, 1, 2, 3].forEach(function (u) {
+      var prog = {
+        bookId: 'yw-1a', yw: { unit: 0, node: 0 }, sx: { unit: u, node: 0 },
+        writingCursor: 0, startDate: U.today(), sessionsDone: 0, archive: {}
+      };
+      var first = Task.buildPlan(U.today(), prog)[0];
+      var cap = NUM_CAP[u] || 20;
+      first.items.math.forEach(function (id) {
+        var it = Content.item(id);
+        var nums = ((it && it.stem) || '').match(/\d+/g) || [];
+        if (nums.some(function (x) { return Number(x) > cap; })) capBad++;
+      });
+    });
+    ok('补位不借未学数域的题', capBad === 0, '超域 ' + capBad + ' 道');
+
     /* 按天预览：家长挑日期检查题目，不能写记录，而且要真的往后走 */
     var pvD1 = U.addDays(U.today(), 7), pvD2 = U.addDays(U.today(), 8);
     var pvA = Task.preview(pvD1), pvB = Task.preview(pvD2), pvA2 = Task.preview(pvD1);
@@ -185,9 +253,9 @@
         return k === i.answer || !CHARS[o] || CHARS[o].p !== a.p;
       });
     }), sylItems.length + ' 题');
-    /* 已下架的 6 类太简单的题：数笔画 / 选组词 / 读第几声 / 声母韵母分类 / 字形结构 / 问偏旁 */
-    var bannedStem = /一共有几笔|可以组成下面哪个词|是第几声？|是声母还是韵母|是什么结构的字|的偏旁是哪个/;
-    var bannedSkill = /认字\.(数笔画|选组词|字形结构|选偏旁)|拼音\.(声调|声母辨认|韵母辨认|字母分类)$/;
+    /* 已下架的 7 类太简单的题：数笔画 / 选组词 / 读第几声 / 声母韵母分类 / 字形结构 / 问偏旁 / 描述字母长相 */
+    var bannedStem = /一共有几笔|可以组成下面哪个词|是第几声？|是声母还是韵母|是什么结构的字|的偏旁是哪个|一竖在左|半圆在右下/;
+    var bannedSkill = /认字\.(数笔画|选组词|字形结构|选偏旁)|拼音\.(声调|声母辨认|韵母辨认|字母分类|形近字母)$/;
     var bannedHits = 0, allCnItems = 0;
     Content.allNodes('chinese').forEach(function (n) {
       n.items.forEach(function (i) {
@@ -195,9 +263,145 @@
         if (bannedStem.test(i.stem) || bannedSkill.test(i.skill || '')) bannedHits++;
       });
     });
-    ok('六类送分题已全部下架', bannedHits === 0 && allCnItems > 0, '残留 ' + bannedHits + ' / 共 ' + allCnItems + ' 题');
+    ok('七类送分题已全部下架', bannedHits === 0 && allCnItems > 0, '残留 ' + bannedHits + ' / 共 ' + allCnItems + ' 题');
     ok('下架后全册题量不变', Content.stats().ywItems === 781 || Content.stats().ywItems === 737,
       String(Content.stats().ywItems));
+    /* 遍历四册：题干不能长得一模一样，也不能把答案写在题干里 */
+    var cnItems = [], mathItems = [];
+    ['yw-1a', 'yw-1b'].forEach(function (bid) {
+      Content.book(bid).units.forEach(function (u) {
+        u.nodes.forEach(function (n) { n.items.forEach(function (i) { cnItems.push(i); }); });
+      });
+    });
+    ['sx-1a', 'sx-1b'].forEach(function (bid) {
+      Content.book(bid).units.forEach(function (u) {
+        u.nodes.forEach(function (n) { n.items.forEach(function (i) { mathItems.push(i); }); });
+      });
+    });
+    /* 「一竖在左、半圆在右下」这种描述字母长相的题整类下架：
+       不用认识拼音，照着形状描述就能选对。题位改成看字选拼音。 */
+    var ciItems = cnItems.filter(function (i) { return i.skill === '拼音.易混声母'; });
+    var CI_FINS = ['ai', 'ao', 'ou', 'en', 'un', 'an', 'ang', 'eng', 'ong',
+      'in', 'ing', 'ian', 'iao', 'iang', 'iong', 'iu', 'ie'];
+    var CI_SM = ['b', 'd', 'p', 'j', 'q', 'x', 'z', 'c', 's', 'zh', 'ch', 'sh'];
+    function ciPart(p) {
+      var base = PY.stripTone(p), ini = '', fin = base;
+      for (var k = 0; k < PY.SHENGMU.length; k++) {
+        var s = PY.SHENGMU[k];
+        if (base.indexOf(s) === 0 && base.length > s.length) { ini = s; fin = base.slice(s.length); break; }
+      }
+      var t = 0;
+      for (var j = 0; j < p.length; j++) { var tt = PY.toneOf(p[j]); if (tt) { t = tt; break; } }
+      return { ini: ini, fin: fin, t: t };
+    }
+    ok('形近字母题整类下架，改成看字选拼音',
+      cnItems.every(function (i) {
+        return i.stem.indexOf('像「广播」的 b') < 0 && i.stem.indexOf('一竖在左') < 0 &&
+          (i.skill || '').indexOf('形近字母') < 0;
+      }) && ciItems.length >= 60, ciItems.length + ' 道新题');
+    ok('易混声母题选项同韵同调、只有声母不同', ciItems.length >= 60 && ciItems.every(function (it) {
+      var parts = it.options.map(ciPart), f = parts[0].fin, t = parts[0].t, inis = {};
+      return it.options.length >= 3 && new Set(it.options).size === it.options.length &&
+        it.answer >= 0 && it.answer < it.options.length && parts.every(function (p) {
+          if (p.fin !== f || p.t !== t || CI_FINS.indexOf(p.fin) < 0 || CI_SM.indexOf(p.ini) < 0) return false;
+          if (inis[p.ini]) return false;
+          inis[p.ini] = 1;
+          return true;
+        });
+    }));
+    ok('易混声母题题干不泄露答案、解析写正确答案', ciItems.every(function (it) {
+      var correct = it.options[it.answer];
+      return !/[a-zāáǎàēéěèīíǐìōóǒòūúǔùǖǘǚǜ]/.test(it.stem) &&
+        it.options.every(function (o) { return it.stem.indexOf(o) < 0; }) &&
+        (it.explain || '').indexOf(correct) >= 0;
+    }));
+    ok('三组易混声母都有题', (function () {
+      var g = [0, 0, 0];
+      ciItems.forEach(function (it) {
+        var ini = ciPart(it.options[it.answer]).ini;
+        if (['b', 'd', 'p'].indexOf(ini) >= 0) g[0]++;
+        else if (['j', 'q', 'x'].indexOf(ini) >= 0) g[1]++;
+        else g[2]++;
+      });
+      return g[0] >= 5 && g[1] >= 5 && g[2] >= 5;
+    })(), ciItems.length + ' 道');
+    var cmpAll = mathItems.filter(function (i) { return i.type === 'cmp'; });
+    ok('比较式题干都带自己的算式', cmpAll.length > 100 && cmpAll.every(function (i) {
+      return /[+−<>]/.test(i.stem) && i.stem.indexOf('□ 里') > 0;
+    }), cmpAll.length + ' 道');
+    var cmpStems = {};
+    ok('同册比较式题干不重复', cmpAll.every(function (i) {
+      var k = i.id.slice(0, 4) + '|' + i.stem;
+      if (cmpStems[k]) return false; cmpStems[k] = 1; return true;
+    }));
+    var chAll = mathItems.filter(function (i) { return i.type === 'challenge'; });
+    var chKinds = {}, chStemSet = {};
+    chAll.forEach(function (i) { chKinds[i.skill] = 1; });
+    ok('试卷同款思维题已铺开', chAll.length >= 100 && Object.keys(chKinds).length >= 10,
+      chAll.length + ' 题 / ' + Object.keys(chKinds).length + ' 类');
+    ok('思维题都是 4 选 1 且选项不重', chAll.every(function (i) {
+      return i.options && i.options.length === 4 && new Set(i.options).size === 4 &&
+        i.answer >= 0 && i.answer < 4;
+    }));
+    ok('思维题题干不泄露答案', chAll.every(function (i) {
+      var a = i.options ? String(i.options[i.answer]) : '';
+      if (!/^\d+$/.test(a)) return true;
+      return (i.stem.match(/\d+/g) || []).indexOf(a) < 0;
+    }));
+    ok('思维题全书题干不重复', chAll.every(function (i) {
+      if (chStemSet[i.stem]) return false; chStemSet[i.stem] = 1; return true;
+    }));
+    ok('思维题解析与答案一致', chAll.every(function (i) {
+      var a = i.options ? String(i.options[i.answer]) : '';
+      return !/^\d+$/.test(a) || (i.explain || '').indexOf(a) >= 0;
+    }));
+    ok('数学题库题量', [440, 441].indexOf(Content.stats().sxItems) >= 0,
+      String(Content.stats().sxItems));
+
+    /* 单元知识点题：第 9/10 周试卷变式 + 后面单元（一上立体图形 / 11~20 /
+       进位加法，一下退位减法 / 100 以内数 / 人民币 / 找规律）的同步题。
+       按单元知识点分散铺，不集中成卷，也不能冒出没学过的数。 */
+    var upAll = mathItems.filter(function (i) { return i.type === 'unit'; });
+    var upKinds = {}, upStemSet = {}, PACK_RULES = SXBuilder.PACK_RULES;
+    var UP_CAP = {
+      'sx-1a': { u0: 5, u1: 5, u2: 10, u3: 10, u4: 20, u5: 20, u6: 20 },
+      'sx-1b': { u1: 20, u2: 20, u3: 20, u4: 100, u5: 100, u6: 100, u7: 100, u8: 100 }
+    };
+    var upBadMatch = 0, upBadCap = 0;
+    ['sx-1a', 'sx-1b'].forEach(function (bid) {
+      Content.book(bid).units.forEach(function (u) {
+        var allow = PACK_RULES[bid.slice(-2) + '|' + u.id] || [];
+        var cap = (UP_CAP[bid] || {})[u.id] || 20;
+        u.nodes.forEach(function (n) {
+          n.items.forEach(function (i) {
+            if (i.type !== 'unit') return;
+            upKinds[i.skill] = 1;
+            if (allow.indexOf(String(i.skill || '').replace('单元题.', '')) < 0) upBadMatch++;
+            var nums = (i.stem + ' ' + (i.options || []).join(' ')).match(/\d+/g) || [];
+            if (nums.some(function (x) { return Number(x) > cap; })) upBadCap++;
+          });
+        });
+      });
+    });
+    ok('单元知识点题已按单元分散铺开', upAll.length >= 150 && Object.keys(upKinds).length >= 20,
+      upAll.length + ' 题 / ' + Object.keys(upKinds).length + ' 类');
+    ok('单元题知识点与本单元匹配', upBadMatch === 0, '错配 ' + upBadMatch + ' 道');
+    ok('单元题数域跟着教材进度', upBadCap === 0, '超域 ' + upBadCap + ' 道');
+    ok('单元题都是 4 选 1 且选项不重', upAll.every(function (i) {
+      return i.options && i.options.length === 4 && new Set(i.options).size === 4 &&
+        i.answer >= 0 && i.answer < 4;
+    }));
+    ok('单元题题干不泄露答案、解析含答案', upAll.every(function (i) {
+      var a = String(i.options[i.answer]);
+      if (!/^\d+$/.test(a)) return true;
+      return (i.stem.match(/\d+/g) || []).indexOf(a) < 0 && (i.explain || '').indexOf(a) >= 0;
+    }));
+    ok('单元题全书题干不重复', upAll.every(function (i) {
+      if (upStemSet[i.stem]) return false; upStemSet[i.stem] = 1; return true;
+    }));
+    ok('单元题不含占位干扰项', upAll.every(function (i) {
+      return i.options.every(function (o) { return !/以上都不对/.test(String(o)); });
+    }));
     ok('写字不预设写汉字或拼音', AI.modeOf({ chars: ['天'] }) === null && !('writingMode' in Store.settings()));
     var pyPrompt = AI.promptFor({ chars: ['天'], mode: 'pinyin' });
     ok('提示词说两种都可以', pyPrompt.indexOf('写汉字或写拼音都可以') >= 0);
@@ -455,7 +659,27 @@
       } catch (e) { out.push('  err: ' + route + ' → ' + e.message); return false; }
     }
     ok('今日任务页', page('#/today'));
-    ok('练习页（已答完）跳写字', (function () { try { history.replaceState(null, '', '#/practice?slot=0'); } catch (e) { } App.render(); return document.querySelectorAll('.q-card').length === 0; })());
+    /* 旧的第 1 场链接：做完一场后不该再看见第 1 场，应落到「当前该做的那一场」。
+       当天还有未完成场次 → 出该场的题卡；全部做完 → 显示「都做完啦」且没有题卡。 */
+    ok('已答完的旧场次链接自动转到当前场', (function () {
+      try { history.replaceState(null, '', '#/practice?slot=0'); } catch (e) { }
+      App.render();
+      var view = document.getElementById('view');
+      var cards = document.querySelectorAll('.q-card').length;
+      var cur = Task.currentSlot(U.today());
+      var d = Store.day(U.today());
+      if (cur < 0) {
+        return cards === 0 && view.textContent.indexOf('都做完啦') >= 0;
+      }
+      var firstId = d.plan[cur] && (d.plan[cur].items.chars || [])[0];
+      var it = firstId && Content.item(firstId);
+      var doneId = d.plan[0] && (d.plan[0].items.chars || [])[0];
+      var doneIt = doneId && Content.item(doneId);
+      var el = document.querySelector('.stem-text');
+      return cards > 0 && !!el &&
+        (!it || el.textContent.indexOf(it.stem.slice(0, 8)) >= 0) &&
+        (!doneIt || el.textContent.indexOf(doneIt.stem.slice(0, 8)) < 0);
+    })());
     ok('写字页', page('#/writing?slot=0'));
     ok('完成页', page('#/done?slot=0'));
     ok('成长页', page('#/growth'));
@@ -635,7 +859,118 @@
     ok('但不等于今日全部完成', after.done === false);
     ok('连续天数把今天算上', App.streak() === 1, '实际 ' + App.streak());
     ok('重排不会抹掉打卡', Task.checkedIn(Task.rebuild(t)) === true && App.streak() === 1);
+
+    /* 写字任务完成 ≠ AI 点评完成；家长跳过也算完成 */
+    ok('有照片即算写字完成', Task.writingOK({ chars: ['天'], photoId: 'p1' }) === true);
+    ok('家长跳过也算写字完成', Task.writingOK({ chars: ['天'], photoId: null, writingSkipped: true }) === true);
+    ok('没照片也没跳过不算', Task.writingOK({ chars: ['天'], photoId: null }) === false);
+    ok('本场无写字任务直接算完成', Task.writingOK({ chars: [], photoId: null }) === true);
+    Store.saveWriting({ date: t, slot: 0, chars: ['天'], photoId: 'p1', scores: null, reviewedAt: null });
+    ok('AI 没点评也能打卡', Task.canCheckin({
+      chars: ['天'], photoId: 'p1', answers: {},
+      items: { chars: [], pinyin: [], math: [] }
+    }) === true && !Store.writingOf(t, 0).reviewedAt);
+    ok('当前场次是第一个未完成场次', (function () {
+      var plan = Store.day(t).plan;
+      var want = -1;
+      plan.forEach(function (s, i) { if (want < 0 && s.status !== 'done') want = i; });
+      return Task.currentSlot(t) === want;
+    })());
     Store.saveSettings({ workCapacity: oldCap });
+  }
+
+  /* 交照片 / 家长跳过 / 从批改页回「开始练习」，都该落在当前该做的一场 */
+  function writingFlow() {
+    section('写字跳过与场次定位');
+    var t = U.today();
+    var oldCap = Store.settings().workCapacity;
+    Store.saveSettings({ workCapacity: 3 });
+    Store.saveDay(t, { plan: [], done: false, checkedIn: false });
+    var day = Task.rebuild(t);
+    day.restAck = 99;                       // 别让「连着第 3 场」的休息弹窗挡住页面
+    Store.saveDay(t, day);
+    ok('造出至少 3 场计划', day.plan.length >= 3, day.plan.length + ' 场');
+
+    function fill(s) {
+      s.answers = s.answers || {};
+      Task.sessionItems(s).forEach(function (it) { s.answers[it.id] = { correct: true, tries: 1 }; });
+      s.startedAt = Date.now() - 60000;
+    }
+    fill(day.plan[0]);                     // 只让第 1 场答完，第 2、3 场留着题才能看出定位
+    Store.saveDay(t, day);
+
+    function stemHead(s) {
+      var it = Content.item(s.items.chars[0]);
+      return it ? it.stem.slice(0, 8) : '###';
+    }
+    var head2 = stemHead(day.plan[1]), head3 = stemHead(day.plan[2]);
+    function stemText() {
+      var el = document.querySelector('.stem-text');
+      return el ? el.textContent : '';
+    }
+
+    /* 第 1 场交了照片但 AI 没点评：照样完成，当前场次前进 */
+    day.plan[0].photoId = 'p_no_ai';
+    Store.saveDay(t, day);
+    Task.completeSlot(t, 0, { ms: 60000 });
+    ok('交照片即完成本场（AI 未点评不挡）',
+      Task.checkedIn(Store.day(t)) === true && Task.currentSlot(t) === 1,
+      '当前场 ' + Task.currentSlot(t));
+
+    var realPin = App.requirePin;
+    App.requirePin = function () { return Promise.resolve(true); };   // 测试里跳过密码弹窗
+
+    return goto('#/review?date=' + t + '&slot=0').then(function () {
+      ok('批改页可打开', document.getElementById('view').childElementCount > 0);
+      return goto('#/practice');                     // 侧栏「开始练习」不带 slot
+    }).then(function () {
+      ok('从批改页回开始练习不是第一场', stemText().indexOf(head2) >= 0, stemText().slice(0, 24));
+      return goto('#/practice?slot=0');             // 浏览器后退 / 旧链接显式指第一场
+    }).then(function () {
+      ok('旧的第一场链接也转到当前场', stemText().indexOf(head2) >= 0, stemText().slice(0, 24));
+      var d1 = Store.day(t);               // 进写字页前把第 2 场三科答完
+      fill(d1.plan[1]);
+      Store.saveDay(t, d1);
+      return goto('#/writing?slot=1');
+    }).then(function () {
+      var btns = Array.prototype.slice.call(document.querySelectorAll('button'));
+      var skipBtn = btns.filter(function (b) { return b.textContent.indexOf('家长跳过') >= 0; })[0];
+      ok('写字页有家长跳过按钮', !!skipBtn);
+      if (skipBtn) skipBtn.click();
+      return sleep(60);
+    }).then(function () {
+      var d2 = Store.day(t);
+      ok('跳过后写字任务算完成', !!d2.plan[1].writingSkipped && Task.writingOK(d2.plan[1]));
+      ok('三科已答完时跳过会结算本场', d2.plan[1].status === 'done', d2.plan[1].status);
+      ok('当前场次推进到第 3 场', Task.currentSlot(t) === 2, Task.currentSlot(t));
+      return goto('#/practice');
+    }).then(function () {
+      ok('再次回开始练习落在第 3 场', stemText().indexOf(head3) >= 0, stemText().slice(0, 24));
+      var d3 = Store.day(t);
+      fill(d3.plan[2]);
+      d3.plan[2].photoId = 'p3';
+      Store.saveDay(t, d3);
+      Task.completeSlot(t, 2, { ms: 60000 });
+      /* 计划可能还有补练场次，把剩下的都收尾，才能验「全部完成」分支 */
+      d3 = Store.day(t);
+      d3.plan.forEach(function (s, i) {
+        if (s.status === 'done') return;
+        fill(s); s.photoId = 'p_done_' + i; s.status = 'done';
+      });
+      d3.done = true;
+      Store.saveDay(t, d3);
+      return goto('#/practice');
+    }).then(function () {
+      ok('全部完成后不再回到第一场',
+        document.getElementById('view').textContent.indexOf('都做完啦') >= 0,
+        document.getElementById('view').textContent.slice(0, 50));
+      App.requirePin = realPin;
+      Store.saveSettings({ workCapacity: oldCap });
+    }).catch(function (e) {
+      App.requirePin = realPin;
+      Store.saveSettings({ workCapacity: oldCap });
+      fail++; out.push('EXCEPTION(writingFlow): ' + e.message);
+    });
   }
 
   interaction().catch(function (e) {
@@ -646,6 +981,8 @@
     try { streakUI(); } catch (e) { fail++; out.push('EXCEPTION(streakUI): ' + e.message); }
   }).then(function () {
     try { checkinSemantics(); } catch (e) { fail++; out.push('EXCEPTION(checkinSemantics): ' + e.message); }
+  }).then(function () {
+    return writingFlow();
   }).then(function () {
     renderResults();
     document.title = '冒烟测试：' + pass + ' 通过 / ' + fail + ' 失败';

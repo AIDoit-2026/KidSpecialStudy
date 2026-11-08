@@ -7,6 +7,8 @@
    已下架的 6 类「太简单」题型（数笔画 / 选组词 / 拼音读第几声 / 声母韵母分类 /
    字形结构 / 问偏旁），空出的题位由「第 N 笔 / 末笔」「选字填空」这类
    要真会笔顺、真懂字义的问法，以及更多拼读识字题补上。
+   「一竖在左、半圆在右下」这种描述字母长相的题也整类下架：不用认识拼音，
+   照着形状描述就能选对；题位改由「同韵母 + 易混声母」的看字选拼音题接手。
    每个节点仍是 5 + 6 = 11 题，全册题量不变。 */
 (function (w) {
   'use strict';
@@ -20,6 +22,45 @@
   var CHAR_TYPES = ['py', 'first', 'nth', 'last', 'word', 'syl'];
   var STROKE_POOL = ['横', '竖', '撇', '点', '提', '捺', '横折', '横钩', '竖钩', '竖提', '竖弯钩',
     '撇折', '斜钩', '卧钩', '横折钩', '横撇', '横折弯钩', '竖折'];
+
+  /* 「同韵母 + 易混声母」题（取代描述字母长相的形近字母题）：
+     题干只给一个汉字，四个选项的韵母、声调完全相同，只有声母不同，
+     声母全部来自孩子最容易混的三组。不认识这个字、分不清 b/d/p、j/q/x、
+     平翘舌 z/c/s/zh/ch/sh，就选不出来。韵母范围按家长指定：
+     ai ao ou en un an ang eng ong（清单里的 on 按 ong 处理，en / un 去重）。 */
+  var CONFUSE_FINS = ['ai', 'ao', 'ou', 'en', 'un', 'an', 'ang', 'eng', 'ong'];
+  /* j/q/x 在普通话里只能接 i / ü 开头的韵母，上面这批开口呼韵母它一个都拼不了。
+     按「等韵母」补上同类的鼻韵母、复韵母，这一组才真正有题可做。 */
+  var CONFUSE_FINS_JQX = ['in', 'ing', 'ian', 'iao', 'iang', 'iong', 'iu', 'ie'];
+  var CONFUSE_GROUPS = [
+    ['b', 'd', 'p'],
+    ['j', 'q', 'x'],
+    ['z', 'c', 's', 'zh', 'ch', 'sh']
+  ];
+  /* 普通话声韵拼合白名单：每个韵母能跟上面三组里的哪些声母相拼。
+     拼不出来的组合不能当干扰项（一眼看出是假拼音 = 送分）。
+     例：b / p 不拼 ou、un、ong；sh 不拼 ong；
+     j q x 在这个韵母清单里只能拼 un（jun / qun / xun，写法是 un）。 */
+  var CONFUSE_ALLOW = {
+    ai: ['b', 'd', 'p', 'z', 'c', 's', 'zh', 'ch', 'sh'],
+    ao: ['b', 'd', 'p', 'z', 'c', 's', 'zh', 'ch', 'sh'],
+    ou: ['d', 'p', 'z', 'c', 's', 'zh', 'ch', 'sh'],
+    en: ['b', 'd', 'p', 'z', 'c', 's', 'zh', 'ch', 'sh'],
+    un: ['d', 'z', 'c', 's', 'zh', 'ch', 'sh', 'j', 'q', 'x'],
+    an: ['b', 'd', 'p', 'z', 'c', 's', 'zh', 'ch', 'sh'],
+    ang: ['b', 'd', 'p', 'z', 'c', 's', 'zh', 'ch', 'sh'],
+    eng: ['b', 'd', 'p', 'z', 'c', 's', 'zh', 'ch', 'sh'],
+    ong: ['d', 'z', 'c', 's', 'zh', 'ch'],
+    /* 补充韵母：这些只有 j/q/x 和 b/d/p 能拼，z/c/s 组拼出来不是普通话音节 */
+    in: ['j', 'q', 'x', 'b', 'p'],
+    ing: ['j', 'q', 'x', 'b', 'p', 'd'],
+    ian: ['j', 'q', 'x', 'b', 'p', 'd'],
+    iao: ['j', 'q', 'x', 'b', 'p', 'd'],
+    iang: ['j', 'q', 'x'],
+    iong: ['j', 'q', 'x'],
+    iu: ['j', 'q', 'x', 'd'],
+    ie: ['j', 'q', 'x', 'b', 'p', 'd']
+  };
 
   /* 全书去重表（每次 build 重置） */
   var USED_STEM = null;        // 题干 → 1
@@ -254,6 +295,64 @@
       type: 'choice', level: 2, skill: q.s || '拼音.概念',
       stem: q.q, audio: q.q.replace(/[「」？]/g, ''),
       options: q.o.slice(), answer: q.a, explain: q.e
+    };
+  }
+
+  /* 字库里真实存在的带调音节。干扰项优先用它们，实在不够才用
+     「拼合合法但没有对应汉字」的音节，免得孩子靠「这拼音看着假」排除。 */
+  var REAL_SYL = null;
+  function realSyllables() {
+    if (REAL_SYL) return REAL_SYL;
+    REAL_SYL = {};
+    Object.keys(C).forEach(function (k) { REAL_SYL[C[k].p] = 1; });
+    return REAL_SYL;
+  }
+
+  /* 看字选拼音 · 易混声母版：四个选项同韵母、同声调，只有声母不同。
+     同组声母优先（正确项不会孤立，没法靠「找不同」猜答案），
+     同组不够 3 个再从另外两组里按合法拼合补，全部都是真拼音。 */
+  function gConfuseInitial(ch, fins) {
+    if (!ch || !fins || !fins.length) return null;
+    var p = ch.p, base = P.stripTone(p), part = splitSyl(base), t = toneOfSyl(p);
+    if (!t || fins.indexOf(part.fin) < 0) return null;
+    var grp = null;
+    CONFUSE_GROUPS.forEach(function (g) { if (g.indexOf(part.ini) >= 0) grp = g; });
+    if (!grp) return null;
+    var allow = CONFUSE_ALLOW[part.fin] || [];
+    if (allow.indexOf(part.ini) < 0) return null;      // 这个字本身拼合不合法，不出题
+    var same = grp.filter(function (s) { return s !== part.ini && allow.indexOf(s) >= 0; });
+    if (same.length < 2) return null;                  // 同组凑不够，会变成排除法送分题
+    var cross = [];
+    CONFUSE_GROUPS.forEach(function (g) {
+      if (g === grp) return;
+      g.forEach(function (s) {
+        if (s !== part.ini && allow.indexOf(s) >= 0 && same.indexOf(s) < 0 && cross.indexOf(s) < 0) cross.push(s);
+      });
+    });
+    /* 先按「字库里真有这个音」分层，再按固定种子打乱：
+       真实读音优先，剩下的空缺才用拼合合法但没字的音节补 */
+    function preferred(list, n, seed, exclude) {
+      var real = [], fake = [];
+      list.forEach(function (s) {
+        (realSyllables()[P.syllable(s, part.fin, t)] ? real : fake).push(s);
+      });
+      var out = hashPick(real, n, seed, exclude);
+      if (out.length < n) out = out.concat(hashPick(fake, n - out.length, seed + 'f', exclude.concat(out)));
+      return out;
+    }
+    var picks = preferred(same, 3, ch.c + '|same', []);
+    if (picks.length < 3) picks = picks.concat(preferred(cross, 3 - picks.length, ch.c + '|cross', picks));
+    if (picks.length < 2) return null;
+    var ds = picks.map(function (s) { return P.syllable(s, part.fin, t); });
+    var r = shuffleOptions(p, ds);
+    return {
+      type: 'choice', level: 3, skill: '拼音.易混声母',
+      _syl: base,
+      stem: '「' + ch.c + '」的正确读音是哪一个？',
+      audio: ch.c + '的正确读音是哪一个',
+      options: r.options, answer: r.answer,
+      explain: '「' + ch.c + '」读 ' + p + '，声母是 ' + part.ini + '、韵母是 ' + part.fin +
+        '；' + ds.join(' / ') + ' 只换了声母，不是这个字的读音。'
     };
   }
 
@@ -503,15 +602,38 @@
     var miscs = (spec.quiz || []).map(function (q) { return function () { return gQuiz(q); }; });
     if (spec.ztr && spec.ztr.length) miscs.push(function () { return gZtr(spec); });
 
-    var groups = [blends, charPys, pyChars, marks, miscs];
+    /* 同韵母 + 易混声母：只挑这一课已经学过的韵母（预设的 confuse 列表），
+       固定种子按节点轮换，同一课在预览 / 打印 / 实做里看到的是同一批题。
+       排在拼读题后面、其它题型前面，保证学过复韵母的课都能练到一道。 */
+    var confuseFins = (spec.confuse || []).filter(function (f) {
+      return CONFUSE_FINS.indexOf(f) >= 0 || CONFUSE_FINS_JQX.indexOf(f) >= 0;
+    });
+    var confusePool = [];
+    allChars.forEach(function (ch) {
+      var part = splitSyl(P.stripTone(ch.p));
+      if (confuseFins.indexOf(part.fin) < 0 || !toneOfSyl(ch.p)) return;
+      for (var gi = 0; gi < CONFUSE_GROUPS.length; gi++) {
+        if (CONFUSE_GROUPS[gi].indexOf(part.ini) >= 0) { confusePool.push(ch); return; }
+      }
+    });
+    confusePool.sort(function (a, b) {
+      return hashStr(a.c + '|' + CODE + '|' + node.id) - hashStr(b.c + '|' + CODE + '|' + node.id);
+    });
+    var confuses = confusePool.map(function (ch) {
+      return function () { return gConfuseInitial(ch, confuseFins); };
+    });
+
+    var groups = [blends, confuses, charPys, pyChars, marks, miscs];
     groups.forEach(function (g, gi) { if (g.length) pickFrom(g, (nodeIdx + gi) % g.length); });
 
-    /* 不足 6 题：继续从各组捞，最后用拼读组合兜底 */
+    /* 不足 6 题：继续从其余各组捞，最后用拼读组合兜底。
+       易混声母题每场最多 1 道，不参与补位，免得连着两道「只有声母不同」显得雷同。 */
+    var fillGroups = [blends, charPys, pyChars, marks, miscs];
     var guard = 0;
     while (items.length < 6 && guard < 120) {
       var progressed = false;
-      for (var gi2 = 0; gi2 < groups.length && items.length < 6; gi2++) {
-        if (pickFrom(groups[gi2], guard)) progressed = true;
+      for (var gi2 = 0; gi2 < fillGroups.length && items.length < 6; gi2++) {
+        if (pickFrom(fillGroups[gi2], guard)) progressed = true;
       }
       if (!progressed) {
         var inis = (spec.sm && spec.sm.length) ? spec.sm : P.SHENGMU.slice(0, 8);
