@@ -760,6 +760,18 @@
     ok('品牌够多', (function () {
       var s = {}; cars.forEach(function (c) { s[c.brand] = 1; }); return Object.keys(s).length >= 12;
     })());
+    ok('奔驰、宝马车型都够组一支车队', (function () {
+      var benz = cars.filter(function (c) { return c.brand === '奔驰'; }).length;
+      var bmw = cars.filter(function (c) { return c.brand === '宝马'; }).length;
+      return benz >= 8 && bmw >= 7;
+    })(), '奔驰 ' + cars.filter(function (c) { return c.brand === '奔驰'; }).length +
+      ' / 宝马 ' + cars.filter(function (c) { return c.brand === '宝马'; }).length);
+    ok('每个年代至少 4 辆', eras.every(function (e) { return Cars.byEra(e.id).length >= 4; }));
+    ok('车模是分层绘制的侧视图', cars.every(function (c) {
+      var s = Cars.svg(c);
+      return s.indexOf('clipPath') > 0 && s.indexOf('linearGradient') > 0 &&
+        (s.match(/<circle/g) || []).length >= 6;
+    }));
     ok('星价按年代递增', (function () {
       for (var i = 1; i < cars.length; i++) if (cars[i].cost < cars[i - 1].cost) return false;
       return true;
@@ -768,6 +780,43 @@
       var s = Cars.svg(c);
       return !!Cars.shapes[c.shape] && s.indexOf('<svg') === 0 &&
         s.indexOf('__') < 0 && s.indexOf('<circle') > 0 && s.indexOf('</svg>') > 0;
+    }));
+    /* 每款车必须是自己的轮廓 + 自己的车型特征，不能退回「共用轮廓只换色」 */
+    ok('每款车一条专属轮廓', (function () {
+      var shapes = {}, bodies = {};
+      return cars.every(function (c) {
+        if (shapes[c.shape]) return false;
+        shapes[c.shape] = 1;
+        var sh = Cars.shapes[c.shape];
+        if (!sh || sh.rad.length !== sh.body.length || sh.grad.length !== sh.glass.length) return false;
+        var k = JSON.stringify(sh.body);
+        if (bodies[k]) return false;
+        bodies[k] = 1;
+        return true;
+      });
+    })(), cars.length + ' 条互不相同的轮廓');
+    ok('每款车都有车型签名特征', cars.every(function (c) {
+      return (c.sig || []).length >= 2;
+    }));
+    ok('代表车型带对了辨识特征', (function () {
+      function has(id, k) {
+        var c = cars.filter(function (x) { return x.id === id; })[0];
+        return !!c && (c.sig || []).indexOf(k) >= 0;
+      }
+      return has('car_300sl', 'gullwing') && has('car_280sl', 'pagoda') &&
+        has('car_belair', 'twotoneWide') && has('car_gclass', 'spare') &&
+        has('car_testarossa', 'strakes') && has('car_supra', 'bigWing') &&
+        has('car_veyron', 'ccurve') && has('car_r8', 'sideblade') &&
+        has('car_cybertruck', 'stainless') && has('car_su7', 'lidar');
+    })());
+    ok('双色/碳顶挖掉玻璃、玻璃仍是蓝的', cars.filter(function (c) {
+      var sg = c.sig || [];
+      return sg.indexOf('twotone') >= 0 || sg.indexOf('twotoneWide') >= 0 ||
+        sg.indexOf('carbonRoof') >= 0 || sg.indexOf('blackRoof') >= 0;
+    }).every(function (c) {
+      var t = Cars.svg(c), sg = c.sig || [];
+      var color = (sg.indexOf('twotone') >= 0 || sg.indexOf('twotoneWide') >= 0) ? c.roof2 : '#2C3038';
+      return !!color && t.indexOf(color) > 0 && t.indexOf('fill-rule="evenodd"') > 0;
     }));
     ok('未解锁时 owned 为空', Cars.owned([]).length === 0);
     ok('解锁后 owned 能查到', Cars.owned([cars[0].id]).length === 1);
