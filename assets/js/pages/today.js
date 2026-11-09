@@ -241,18 +241,78 @@
       ));
     }
 
-    /* ---- 我的小屋（虚拟奖励）---- */
+    /* ---- 徽章速览：一直做题的结果直接摆在今日任务页，不用跑去成长记录翻 ---- */
+    var badgeList = w.Badges.all();
+    var gotBadges = badgeList.filter(function (b) { return b.owned; });
+    var seenKey = w.Store.PREFIX + 'badgeseen_' + kid.id;
+    var seen = readSeen(seenKey);
+    /* 第一次打开只记下现状，不把历史徽章当成「刚解锁」刷一遍庆祝 */
+    var fresh = seen === null ? [] : gotBadges.filter(function (b) { return seen.indexOf(b.id) < 0; });
+    if (seen === null || fresh.length) writeSeen(seenKey, gotBadges.map(function (b) { return b.id; }));
+
+    var bCard = U.h('div', { class: 'card', style: { marginTop: '16px' } });
+    bCard.appendChild(U.h('div', { class: 'card-title' },
+      U.h('h2', { text: '🏅 我的徽章' }),
+      U.h('div', { class: 'row' },
+        U.h('span', { class: 'pill yellow', text: gotBadges.length + ' / ' + badgeList.length }),
+        U.h('button', { class: 'btn btn-sm', text: '徽章墙', onclick: function () { App.go('#/growth'); } })
+      )
+    ));
+    if (fresh.length) {
+      bCard.appendChild(U.h('div', { class: 'bg-fresh' },
+        U.h('span', { text: '🎉 新徽章：' }),
+        U.h('b', { text: fresh.map(function (b) { return b.emoji + ' ' + b.name; }).join('、') }),
+        U.h('span', { text: '　继续做题，还有下一枚等着你！' })
+      ));
+      try { U.sfx('done'); } catch (e) { }
+    }
+    var hi = w.Badges.highlights(7);
+    if (hi.length) {
+      var chips = U.h('div', { class: 'bg-chips' });
+      hi.forEach(function (b) {
+        chips.appendChild(U.h('div', { class: 'bg-chip', title: b.desc },
+          U.h('span', { class: 'bg-emoji', text: b.emoji }),
+          U.h('span', { text: b.name })
+        ));
+      });
+      bCard.appendChild(chips);
+    } else {
+      bCard.appendChild(U.h('div', { class: 'small muted', text: '做一场练习，就能点亮第一枚徽章 🌱' }));
+    }
+    var nx = w.Badges.next();
+    if (nx) {
+      bCard.appendChild(U.h('div', { class: 'bg-next' },
+        U.h('span', { class: 'bg-next-emoji', text: nx.emoji }),
+        U.h('div', { class: 'bg-next-body' },
+          U.h('div', { class: 'small' },
+            U.h('b', { text: '下一枚：' + nx.name }),
+            U.h('span', { class: 'muted', text: '　' + nx.desc + '，还差 ' + nx.left })
+          ),
+          U.h('div', { class: 'bg-bar' }, U.h('i', { style: { width: nx.pct + '%' } }))
+        )
+      ));
+    } else {
+      bCard.appendChild(U.h('div', { class: 'small', style: { color: 'var(--green)', fontWeight: '800' },
+        text: '🎊 所有徽章都集齐啦，太厉害了！' }));
+    }
+    view.appendChild(bCard);
+
+    /* ---- 我的小屋（虚拟奖励 + 年代车模展柜）---- */
     var decor = w.Store.decor();
     var stars = w.Store.stars();
+    var CARS = w.Cars.all();
     var bar = U.h('div', { class: 'card', style: { marginTop: '16px' } });
     var head = U.h('div', { class: 'card-title' },
       U.h('h2', { text: '🏡 我的小屋' }),
       U.h('div', { class: 'row' },
         U.h('span', { class: 'pill yellow', text: '⭐ ' + stars }),
-        U.h('button', { class: 'btn btn-sm', text: '装扮', onclick: openShop })
+        U.h('button', { class: 'btn btn-sm', text: '装扮', onclick: function () { openShop('decor'); } })
       )
     );
     bar.appendChild(head);
+
+    /* 房间装饰：原来的 7 件，id 不变，旧存档照常认识 */
+    bar.appendChild(U.h('div', { class: 'small muted', style: { marginBottom: '4px' }, text: '🌿 房间装饰' }));
     var dbar = U.h('div', { class: 'decor-bar' });
     DECOR.forEach(function (d) {
       var owned = d.cost === 0 || decor.indexOf(d.id) >= 0;
@@ -262,10 +322,33 @@
       }));
     });
     bar.appendChild(dbar);
-    frame(() => {
-      bar.appendChild(U.h('div', { class: 'small muted', style: { marginTop: '8px' },
-        text: ownedCount() + ' / ' + DECOR.length + ' 件装饰已解锁，答对题目和交作业都能攒星星。' }));
+
+    /* 车模展柜：按年代从老到新排，已解锁彩色、未解锁灰度加锁 */
+    var ownedCars = w.Cars.owned(decor);
+    bar.appendChild(U.h('div', { class: 'shelf-head' },
+      U.h('span', { style: { fontWeight: '800', fontSize: '14px' }, text: '🚗 汽车模型展柜' }),
+      U.h('span', { class: 'pill blue', text: ownedCars.length + ' / ' + CARS.length + ' 辆' }),
+      U.h('span', { class: 'spacer' }),
+      U.h('button', { class: 'btn btn-sm', text: '车模商店', onclick: function () { openShop('car'); } })
+    ));
+    var shelf = U.h('div', { class: 'car-shelf' });
+    CARS.forEach(function (c) {
+      var on = decor.indexOf(c.id) >= 0;
+      shelf.appendChild(U.h('div', {
+        class: 'car-cell' + (on ? ' on' : ' off'),
+        title: (on ? '' : '🔒 ') + c.brand + ' ' + c.model + ' · ' + c.year + (on ? '' : '（' + c.cost + ' 星）'),
+        onclick: function () { openShop('car', c.era); }
+      },
+        U.h('div', { class: 'car-thumb', html: w.Cars.svg(c) }),
+        U.h('div', { class: 'cc-era', text: c.year + (on ? '' : ' 🔒') }),
+        U.h('div', { class: 'cc-name', text: c.brand + ' ' + c.model })
+      ));
     });
+    bar.appendChild(shelf);
+    bar.appendChild(U.h('div', { class: 'small muted', style: { marginTop: '8px' },
+      text: '已解锁 ' + (ownedCount() + ownedCars.length) + ' / ' + (DECOR.length + CARS.length) +
+        ' 件 · 从 ' + w.Cars.firstYear() + ' 年的老爷车到 ' + w.Cars.lastYear() +
+        ' 年的电车，做题攒星星，一辆一辆开回家。' }));
     view.appendChild(bar);
 
     function ownedCount() {
@@ -274,36 +357,107 @@
       return n;
     }
 
-    function openShop() {
-      var body = U.h('div', { class: 'grid g2' });
-      var m = U.modal({ title: '装饰小商店', desc: '用星星解锁，纯虚拟奖励，随时可换。', body: body });
-      DECOR.forEach(function (d) {
-        var owned = d.cost === 0 || w.Store.decor().indexOf(d.id) >= 0;
-        body.appendChild(U.h('div', {
-          class: 'card', style: { padding: '14px', textAlign: 'center', boxShadow: 'none', background: '#FBF7FA' }
-        },
-          U.h('div', { style: { fontSize: '34px' }, text: d.emoji }),
-          U.h('div', { style: { fontWeight: '800', fontSize: '14px' }, text: d.name }),
-          owned ? U.h('div', { class: 'pill green', style: { marginTop: '6px' }, text: '已拥有' }) :
-            U.h('button', {
-              class: 'btn btn-sm', style: { marginTop: '6px' },
-              text: '⭐ ' + d.cost,
-              onclick: function () {
-                if (w.Store.stars() < d.cost) { U.toast('星星还不够，再做几天吧', 'no'); return; }
-                w.Store.addStars(-d.cost);
-                w.Store.unlockDecor(d.id);
-                U.sfx('done');
-                m.close();
-                render(view, query);
-              }
-            })
-        ));
+    /* 装扮商店：房间装饰 / 汽车模型两个分类，车模按年代分组 */
+    function openShop(tab, focusEra) {
+      var body = U.h('div', {});
+      var tabs = U.h('div', { class: 'shop-tabs' });
+      var content = U.h('div', {});
+      body.appendChild(tabs);
+      body.appendChild(content);
+      var m = U.modal({
+        title: '装饰小商店', desc: '用星星解锁，纯虚拟奖励，随时可换。', body: body
       });
+
+      function draw(which) {
+        tab = which;
+        U.clear(tabs);
+        [
+          ['decor', '🌿 房间装饰 ' + ownedCount() + '/' + DECOR.length],
+          ['car', '🚗 汽车模型 ' + w.Cars.owned(w.Store.decor()).length + '/' + CARS.length]
+        ].forEach(function (t) {
+          tabs.appendChild(U.h('button', {
+            class: 'btn btn-sm ' + (tab === t[0] ? 'btn-primary' : 'btn-ghost'),
+            text: t[1], onclick: function () { draw(t[0]); }
+          }));
+        });
+        U.clear(content);
+        if (tab === 'decor') drawDecor(); else drawCars();
+      }
+
+      function buy(name, id, cost) {
+        if (w.Store.stars() < cost) { U.toast('星星还不够，再做几天吧', 'no'); return; }
+        w.Store.addStars(-cost);
+        w.Store.unlockDecor(id);
+        U.sfx('done');
+        U.toast('🎉 ' + name + ' 开回家啦', 'ok');
+        m.close();
+        App.render();
+      }
+
+      function drawDecor() {
+        var grid = U.h('div', { class: 'grid g2' });
+        DECOR.forEach(function (d) {
+          var owned = d.cost === 0 || w.Store.decor().indexOf(d.id) >= 0;
+          grid.appendChild(U.h('div', {
+            class: 'card', style: { padding: '14px', textAlign: 'center', boxShadow: 'none', background: '#FBF7FA' }
+          },
+            U.h('div', { style: { fontSize: '34px' }, text: d.emoji }),
+            U.h('div', { style: { fontWeight: '800', fontSize: '14px' }, text: d.name }),
+            owned ? U.h('div', { class: 'pill green', style: { marginTop: '6px' }, text: '已拥有' }) :
+              U.h('button', {
+                class: 'btn btn-sm', style: { marginTop: '6px' }, text: '⭐ ' + d.cost,
+                onclick: function () { buy(d.name, d.id, d.cost); }
+              })
+          ));
+        });
+        content.appendChild(grid);
+      }
+
+      function drawCars() {
+        w.Cars.eras().forEach(function (era) {
+          content.appendChild(U.h('div', { class: 'era-head', dataset: { era: era.id } },
+            U.h('b', { text: era.label }),
+            U.h('span', { class: 'small muted', text: era.note })
+          ));
+          var grid = U.h('div', { class: 'car-grid' });
+          w.Cars.byEra(era.id).forEach(function (c) {
+            var on = w.Store.decor().indexOf(c.id) >= 0;
+            grid.appendChild(U.h('div', { class: 'car-buy' + (on ? ' owned' : '') },
+              U.h('div', { class: 'car-thumb', html: w.Cars.svg(c) }),
+              U.h('div', { class: 'cb-name', text: c.brand + ' ' + c.model }),
+              U.h('div', { class: 'small muted', text: c.year + ' 年' }),
+              on ? U.h('div', { class: 'pill green', text: '已拥有' }) :
+                U.h('button', {
+                  class: 'btn btn-sm', text: '⭐ ' + c.cost,
+                  onclick: function () { buy(c.brand + ' ' + c.model, c.id, c.cost); }
+                })
+            ));
+          });
+          content.appendChild(grid);
+        });
+        if (focusEra) {
+          setTimeout(function () {
+            var el = content.querySelector('[data-era="' + focusEra + '"]');
+            if (el && el.scrollIntoView) el.scrollIntoView({ block: 'center' });
+          }, 0);
+        }
+      }
+
+      draw(tab || 'decor');
     }
   }
 
-  /* 简易延迟执行（避免上面函数声明顺序问题） */
-  function frame(fn) { setTimeout(fn, 0); }
+  /* 徽章「新解锁」提示只弹一次：记下上次展示过的徽章 id。
+     用 Store 自己的前缀，重置 / 导出导入 / 快照会一并带上。 */
+  function readSeen(key) {
+    try {
+      var v = w.localStorage.getItem(key);
+      return v === null ? null : JSON.parse(v);
+    } catch (e) { return null; }
+  }
+  function writeSeen(key, ids) {
+    try { w.localStorage.setItem(key, JSON.stringify(ids)); } catch (e) { }
+  }
 
   App.page('today', { title: '今日任务', render: render, DECOR: DECOR });
 })(window);

@@ -10,8 +10,10 @@
   function pickVoice() {
     if (!synth) return;
     voices = synth.getVoices() || [];
-    zhVoice = voices.filter(function (v) { return /zh[-_]CN|Chinese|中文|普通话/i.test(v.lang + ' ' + v.name); })[0]
-      || voices.filter(function (v) { return /^zh/i.test(v.lang); })[0] || null;
+    // zhVoice = voices.filter(function (v) { return /zh[-_]CN|Chinese|中文|普通话/i.test(v.lang + ' ' + v.name); })[0]
+    //   || voices.filter(function (v) { return /^zh/i.test(v.lang); })[0] || null;
+    // zhVoice = voices.filter(function (v) { return /zh[-_]CN|Taiwan/i.test(v.lang + ' ' + v.name); })[0]
+    zhVoice = voices.find(function (v) { return v.name === 'Microsoft Xiaoyi Online (Natural) - Chinese (Mainland)'; }) || null;
     ready = true;
   }
 

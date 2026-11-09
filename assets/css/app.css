@@ -485,6 +485,43 @@ textarea.input{min-height:84px;resize:vertical}
 .review-row .rr-sub{font-size:12px;color:var(--muted)}
 .badge-dot{background:var(--pink);color:#fff;border-radius:999px;font-size:11px;padding:1px 7px;font-weight:800}
 
+/* ---- 徽章墙分组 / 今日任务页徽章速览 ---- */
+.badge-group-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin:15px 0 8px;font-size:14px;font-weight:800;color:var(--ink-2)}
+.badge-item{position:relative;overflow:hidden}
+.badge-item .b-prog{height:4px;border-radius:99px;background:#F1EDF1;margin:6px 7px 0;overflow:hidden}
+.badge-item .b-prog i{display:block;height:100%;border-radius:99px;background:var(--pink)}
+.bg-fresh{background:#FFF7DC;border:1px solid #FFE49A;color:#8A6E00;border-radius:12px;padding:8px 12px;font-size:13px;margin-bottom:10px}
+.bg-chips{display:flex;flex-wrap:wrap;gap:8px}
+.bg-chip{display:inline-flex;align-items:center;gap:6px;background:linear-gradient(180deg,#FFFBEA,#fff);border:1px solid #F6E7B8;border-radius:999px;padding:5px 11px;font-size:12px;font-weight:800;color:#8A6E00}
+.bg-chip .bg-emoji{font-size:17px}
+.bg-next{display:flex;align-items:center;gap:11px;margin-top:11px;background:#F9F7FC;border-radius:12px;padding:9px 12px}
+.bg-next-emoji{font-size:25px;filter:grayscale(.6);opacity:.75}
+.bg-next-body{flex:1;min-width:0}
+.bg-bar{height:7px;border-radius:99px;background:#ECE7F0;overflow:hidden;margin-top:6px}
+.bg-bar i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,#FFB36B,#FF6B9D)}
+
+/* ---- 我的小屋 · 年代汽车模型展柜与分类商店 ---- */
+.shelf-head{display:flex;align-items:center;gap:9px;margin:16px 0 6px}
+.car-shelf{display:flex;gap:9px;overflow-x:auto;padding:4px 2px 10px;scrollbar-width:thin}
+.car-shelf::-webkit-scrollbar{height:6px}
+.car-shelf::-webkit-scrollbar-track{background:transparent}
+.car-shelf::-webkit-scrollbar-thumb{background:#E8DCE5;border-radius:99px}
+.car-cell{flex:0 0 104px;text-align:center;cursor:pointer;border-radius:12px;padding:5px 4px 6px;background:#FCFAFC;border:1px solid #F2E4EC;transition:transform .15s}
+.car-cell:hover{transform:translateY(-2px);border-color:#FFD3E4}
+.car-cell.off .car-thumb{filter:grayscale(1);opacity:.32}
+.car-cell.off{color:var(--muted)}
+.car-thumb svg{width:100%;height:52px;display:block}
+.cc-era{font-size:10px;color:var(--muted);margin-top:1px}
+.cc-name{font-size:11px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.shop-tabs{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+.era-head{display:flex;align-items:baseline;gap:10px;margin:14px 0 8px;padding-bottom:5px;border-bottom:1px dashed var(--line);font-size:14px;color:var(--ink)}
+.car-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:10px}
+.car-buy{text-align:center;background:#FBF7FA;border:1px solid #F2E4EC;border-radius:14px;padding:9px 7px 11px}
+.car-buy.owned{background:#F7FDF4;border-color:#DDF0D3}
+.car-buy .car-thumb svg{height:56px}
+.car-buy .cb-name{font-size:12px;font-weight:800;margin:2px 0 3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.car-buy .btn{margin-top:6px}
+
 .score-row{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px dashed #F2E7ED}
 .score-row .sr-name{flex:0 0 96px;width:96px;font-size:14px;font-weight:700;white-space:nowrap}
 .stars-pick{display:flex;gap:4px}

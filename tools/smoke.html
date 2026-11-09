@@ -42,6 +42,8 @@
 <script src="../assets/js/charts.js"></script>
 <script src="../assets/js/export.js"></script>
 <script src="../assets/js/ai.js"></script>
+<script src="../assets/js/badges.js"></script>
+<script src="../assets/js/cars.js"></script>
 <script src="../content/chars-db.js"></script>
 <script src="../content/chars-db-1b.js"></script>
 <script src="../content/py-presets.js"></script>
@@ -718,6 +720,113 @@
     return sleep(30);
   }
 
+  /* 徽章墙 + 年代车模：数据、页面渲染、真实解锁点击、新徽章提示只弹一次 */
+  function badgeAndCars() {
+    section('徽章与汽车模型');
+    var badges = Badges.all();
+    ok('徽章数量明显增加', badges.length >= 30, badges.length);
+    ok('徽章分组齐全', Badges.groups.length >= 8 && badges.every(function (b) {
+      return Badges.groups.some(function (g) { return g.id === b.group; });
+    }));
+    ok('徽章 id 唯一', (function () {
+      var s = {}; return badges.every(function (b) { if (s[b.id]) return false; s[b.id] = 1; return true; });
+    })());
+    ok('徽章进度在 0~100%', badges.every(function (b) {
+      return b.pct >= 0 && b.pct <= 100 && b.current <= b.goal && b.owned === (b.pct === 100);
+    }));
+    ok('下一枚徽章可计算', (function () {
+      var n = Badges.next(); return n === null || (n.owned === false && n.left >= 1);
+    })());
+    ok('统计口径全是数字', (function () {
+      var st = Badges.stats();
+      return Object.keys(st).every(function (k) { return typeof st[k] === 'number'; });
+    })());
+
+    var cars = Cars.all(), eras = Cars.eras();
+    ok('车模覆盖 8 个年代', cars.length >= 24 && eras.length === 8, cars.length + ' 辆');
+    ok('从 50 年代到现在', Cars.firstYear() <= 1955 && Cars.lastYear() >= 2024,
+      Cars.firstYear() + '→' + Cars.lastYear());
+    ok('每个年代至少 3 辆', eras.every(function (e) { return Cars.byEra(e.id).length >= 3; }));
+    ok('同年代内按年份从老到新', eras.every(function (e) {
+      var ys = Cars.byEra(e.id).map(function (c) { return c.year; });
+      for (var i = 1; i < ys.length; i++) if (ys[i] < ys[i - 1]) return false;
+      return true;
+    }));
+    ok('车模 id 唯一且带 car_ 前缀', (function () {
+      var s = {}; return cars.every(function (c) {
+        if (s[c.id] || c.id.indexOf('car_') !== 0) return false; s[c.id] = 1; return true;
+      });
+    })());
+    ok('品牌够多', (function () {
+      var s = {}; cars.forEach(function (c) { s[c.brand] = 1; }); return Object.keys(s).length >= 12;
+    })());
+    ok('星价按年代递增', (function () {
+      for (var i = 1; i < cars.length; i++) if (cars[i].cost < cars[i - 1].cost) return false;
+      return true;
+    })());
+    ok('每辆车都有有效 SVG 造型', cars.every(function (c) {
+      var s = Cars.svg(c);
+      return !!Cars.shapes[c.shape] && s.indexOf('<svg') === 0 &&
+        s.indexOf('__') < 0 && s.indexOf('<circle') > 0 && s.indexOf('</svg>') > 0;
+    }));
+    ok('未解锁时 owned 为空', Cars.owned([]).length === 0);
+    ok('解锁后 owned 能查到', Cars.owned([cars[0].id]).length === 1);
+
+    /* 今日任务页：徽章速览 + 车模展柜 */
+    history.replaceState(null, '', '#/today');
+    App.render();
+    var view = document.getElementById('view');
+    ok('今日页有徽章速览卡', view.textContent.indexOf('我的徽章') >= 0);
+    ok('今日页有下一枚进度', !!document.querySelector('.bg-next .bg-bar'));
+    ok('今日页有徽章成就 chips', document.querySelectorAll('.bg-chip').length >= 1);
+    ok('展柜按车模总数渲染', document.querySelectorAll('.car-shelf .car-cell').length === cars.length,
+      document.querySelectorAll('.car-shelf .car-cell').length);
+    ok('展柜里是 SVG 车模', document.querySelectorAll('.car-shelf .car-cell svg').length === cars.length);
+    ok('未解锁车模是灰度加锁', document.querySelectorAll('.car-shelf .car-cell.off').length >= 1);
+    ok('展柜从老车排到新车', (function () {
+      var t = document.querySelector('.car-shelf .car-cell .cc-era');
+      return t && t.textContent.indexOf(String(cars[0].year)) === 0;
+    })());
+
+    /* 成长页徽章墙按组展示，并显示未解锁进度 */
+    history.replaceState(null, '', '#/growth');
+    App.render();
+    ok('成长页徽章按组展示', document.querySelectorAll('.badge-group-head').length === Badges.groups.length);
+    ok('成长页徽章数量一致', document.querySelectorAll('.badge-item').length === badges.length);
+    ok('未解锁徽章显示还差多少', document.querySelectorAll('.badge-item .b-prog').length >= 1);
+
+    /* 真实点击：车模商店 → 切到车模 → 解锁第一辆 */
+    history.replaceState(null, '', '#/today');
+    App.render();
+    Store.addStars(1000);
+    var starsBefore = Store.stars();
+    var onBefore = document.querySelectorAll('.car-shelf .car-cell.on').length;
+    var shopBtn = document.querySelector('.shelf-head .btn');
+    if (shopBtn) shopBtn.click();
+    var modal = document.querySelector('.modal');
+    ok('车模商店能打开', !!modal);
+    var carTab = modal && U.$$('.shop-tabs .btn', modal)[1];
+    if (carTab) carTab.click();
+    ok('商店有年代分组', !!modal && modal.querySelectorAll('.era-head').length === eras.length);
+    ok('商店列出全部车模', !!modal && modal.querySelectorAll('.car-buy').length === cars.length);
+    var buyBtn = modal && modal.querySelector('.car-buy .btn');
+    if (buyBtn) buyBtn.click();
+    ok('解锁后写入存档', Store.decor().indexOf(cars[0].id) >= 0);
+    ok('解锁扣掉对应星星', Store.stars() === starsBefore - cars[0].cost,
+      Store.stars() + ' vs ' + (starsBefore - cars[0].cost));
+    ok('解锁后展柜点亮一辆', document.querySelectorAll('.car-shelf .car-cell.on').length === onBefore + 1,
+      document.querySelectorAll('.car-shelf .car-cell.on').length);
+
+    /* 新徽章庆祝只弹一次 */
+    ok('已有徽章可供提示', Badges.owned().length >= 1, Badges.owned().length);
+    var kidId = Store.kids.active().id;
+    localStorage.setItem(Store.PREFIX + 'badgeseen_' + kidId, JSON.stringify([]));
+    App.render();
+    ok('新解锁徽章有庆祝提示', !!document.querySelector('.bg-fresh'));
+    App.render();
+    ok('庆祝提示不重复弹', !document.querySelector('.bg-fresh'));
+  }
+
   function interaction() {
     section('交互流程（真实点击）');
     return sleep(300).then(function () {   // 先等前面 App.go 触发的 hashchange 落地
@@ -983,6 +1092,8 @@
     try { checkinSemantics(); } catch (e) { fail++; out.push('EXCEPTION(checkinSemantics): ' + e.message); }
   }).then(function () {
     return writingFlow();
+  }).then(function () {
+    try { badgeAndCars(); } catch (e) { fail++; out.push('EXCEPTION(badgeAndCars): ' + e.message); }
   }).then(function () {
     renderResults();
     document.title = '冒烟测试：' + pass + ' 通过 / ' + fail + ' 失败';

@@ -2,17 +2,6 @@
 (function (w) {
   'use strict';
 
-  var BADGES = [
-    { id: 'streak7', emoji: '🔥', name: '坚持 7 天', desc: '连续打卡 7 天' },
-    { id: 'streak14', emoji: '🌟', name: '坚持 14 天', desc: '连续打卡 14 天' },
-    { id: 'streak30', emoji: '👑', name: '坚持 30 天', desc: '连续打卡 30 天' },
-    { id: 'q100', emoji: '📚', name: '百题斩', desc: '累计答对 100 题' },
-    { id: 'q500', emoji: '🏅', name: '五百题', desc: '累计答对 500 题' },
-    { id: 's10', emoji: '🎯', name: '十场', desc: '完成 10 场练习' },
-    { id: 'write10', emoji: '✍️', name: '小小书法家', desc: '交作业 10 次' },
-    { id: 'perfect', emoji: '💎', name: '满分一次', desc: '单场全对' }
-  ];
-
   function accOf(attempts, module) {
     var list = attempts.filter(function (a) { return !module || a.subject === module; });
     if (!list.length) return null;
@@ -44,7 +33,6 @@
     y = dt.getFullYear(); m = dt.getMonth();
 
     /* 概览 */
-    var totalCorrect = attempts.filter(function (a) { return a.correct; }).length;
     var sessionsDone = progress.sessionsDone || 0;
     var row = U.h('div', { class: 'stat-row' });
     row.appendChild(statBox('⭐', '累计星星', w.Store.stars(), '答对 + 交作业获得'));
@@ -125,23 +113,40 @@
     g2.appendChild(lineCard);
     view.appendChild(g2);
 
-    /* 徽章 */
+    /* 徽章：和今日任务页共用 Badges 的定义与判定，按组显示，没拿到的显示还差多少 */
+    var badges = w.Badges.all();
+    var ownedCount = badges.filter(function (b) { return b.owned; }).length;
     var badgeCard = U.h('div', { class: 'card' });
-    var owned = ownedBadges();
     badgeCard.appendChild(U.h('div', { class: 'card-title' },
       U.h('h2', { text: '🏅 徽章墙' }),
-      U.h('span', { class: 'pill yellow', text: owned.length + ' / ' + BADGES.length })
+      U.h('span', { class: 'pill yellow', text: ownedCount + ' / ' + badges.length })
     ));
-    var bw = U.h('div', { class: 'badges' });
-    BADGES.forEach(function (b) {
-      var on = owned.indexOf(b.id) >= 0;
-      bw.appendChild(U.h('div', { class: 'badge-item' + (on ? ' on' : '') },
-        U.h('div', { class: 'b-emoji', text: b.emoji }),
-        U.h('div', { class: 'b-name', text: b.name }),
-        U.h('div', { class: 'b-desc', text: b.desc })
+    badgeCard.appendChild(U.h('div', {
+      class: 'small muted', style: { marginBottom: '10px' },
+      text: '一直做题就会一枚一枚亮起来；灰色的徽章下面写着还差多少。'
+    }));
+    w.Badges.groups.forEach(function (g) {
+      var list = badges.filter(function (b) { return b.group === g.id; });
+      if (!list.length) return;
+      var got = list.filter(function (b) { return b.owned; }).length;
+      badgeCard.appendChild(U.h('div', { class: 'badge-group-head' },
+        U.h('span', { text: g.emoji + ' ' + g.name }),
+        U.h('span', { class: 'small muted', text: got + ' / ' + list.length })
       ));
+      var bw = U.h('div', { class: 'badges' });
+      list.forEach(function (b) {
+        bw.appendChild(U.h('div', {
+          class: 'badge-item' + (b.owned ? ' on' : ''),
+          title: b.desc + (b.owned ? '' : '（' + b.current + ' / ' + b.goal + '）')
+        },
+          U.h('div', { class: 'b-emoji', text: b.emoji }),
+          U.h('div', { class: 'b-name', text: b.name }),
+          U.h('div', { class: 'b-desc', text: b.owned ? b.desc : '还差 ' + b.left + ' · ' + b.current + '/' + b.goal }),
+          b.owned ? null : U.h('div', { class: 'b-prog' }, U.h('i', { style: { width: b.pct + '%' } }))
+        ));
+      });
+      badgeCard.appendChild(bw);
     });
-    badgeCard.appendChild(bw);
     view.appendChild(badgeCard);
 
     /* 错题入口 */
@@ -177,23 +182,6 @@
         prev = k;
       });
       return best;
-    }
-
-    function ownedBadges() {
-      var out = [];
-      var st = App.streak();
-      if (st >= 7) out.push('streak7');
-      if (st >= 14) out.push('streak14');
-      if (st >= 30) out.push('streak30');
-      if (totalCorrect >= 100) out.push('q100');
-      if (totalCorrect >= 500) out.push('q500');
-      if (sessionsDone >= 10) out.push('s10');
-      if (w.Store.writingList().filter(function (x) { return x.photoId; }).length >= 10) out.push('write10');
-      var perfect = Object.keys(allDays).some(function (k) {
-        return (allDays[k].plan || []).some(function (s) { return s.status === 'done' && s.score === 1; });
-      });
-      if (perfect) out.push('perfect');
-      return out;
     }
   }
 
