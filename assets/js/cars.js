@@ -293,7 +293,7 @@
       pts: { 4: [58, 68], 5: [98, 44], 6: [178, 40], 7: [202, 46] }, sig: ['floatingC', 'kidney', 'blueAccent', 'led'] },
     { id: 'car_amggt', brand: '奔驰', model: 'AMG GT', year: 2015, era: '2010s', shape: 'amggt15', base: 'supercar00', color: '#96B4C9',
       pts: { 5: [96, 50], 6: [136, 44], 7: [172, 46], 8: [206, 56], 9: [226, 76], 10: [256, 78] }, sig: ['star', 'longHood', 'panamericana'] },
-    { id: 'car_taycan', brand: '保时捷', model: 'Taycan', year: 2019, era: '2010s', shape: 'taycan19', base: 'evlift', color: '#7FAEDC',
+    { id: 'car_taycan', brand: '保时捷', model: 'Taycan', year: 2019, era: '2010s', shape: 'taycan19', base: 'evlift', color: '#7A4FB5',
       pts: { 5: [98, 42], 6: [178, 40], 7: [202, 46], 8: [220, 76] }, tw: { roof: 2 }, sig: ['ledbar', 'pano', 'hiddenHandle'] },
 
     /* 2020s */
@@ -307,7 +307,7 @@
       pts: { 3: [148, 42], 4: [198, 42], 5: [256, 86] }, sig: ['stainless', 'ledbar', 'blackClad'] },
     { id: 'car_u8', brand: '比亚迪', model: '仰望 U8', year: 2023, era: '2020s', shape: 'u8_23', base: 'u8', color: '#4F6570',
       sig: ['spare', 'lidar', 'roofrack', 'ledbar'] },
-    { id: 'car_su7', brand: '小米', model: 'SU7', year: 2024, era: '2020s', shape: 'su7_24', base: 'evlift', color: '#4E8AD4',
+    { id: 'car_su7', brand: '小米', model: 'SU7 Ultra', year: 2024, era: '2020s', shape: 'su7_24', base: 'evlift', color: '#F2C81E',
       pts: { 4: [44, 64], 5: [92, 40], 6: [176, 38], 7: [200, 44], 8: [218, 74] }, tw: { roof: 2 }, sig: ['lidar', 'ledbar', 'hiddenHandle', 'pano'] }
   ];
 
@@ -869,6 +869,16 @@
 
   /* ---------------- 生成一辆车的完整 SVG ---------------- */
   function svg(car) {
+    /* 手绘矢量图（cars-art.js，目前 42 辆全覆盖）优先；以后新增的车若没画，继续走下面的参数化造型 */
+    var art = w.CarArt && w.CarArt[car.id];
+    if (art) {
+      return '<svg viewBox="0 0 320 160" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="' +
+        esc(car.brand + ' ' + car.model + ' ' + car.year) + '">' +
+        art.replace(/__C__/g, car.color)
+          .replace(/__D__/g, mix(car.color, '#1D1D2B', 0.42))
+          .replace(/__L__/g, mix(car.color, '#FFFFFF', 0.46))
+          .replace(/__R__/g, car.roof2 || car.color) + '</svg>';
+    }
     var sh = SHAPES[car.shape] || SHAPES.sedan;
     var uid = String(car.id || 'car').replace(/[^a-zA-Z0-9_]/g, '');
     var light = mix(car.color, '#FFFFFF', 0.46);

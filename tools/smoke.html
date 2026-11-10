@@ -43,6 +43,7 @@
 <script src="../assets/js/export.js"></script>
 <script src="../assets/js/ai.js"></script>
 <script src="../assets/js/badges.js"></script>
+<script src="../assets/js/cars-art.js"></script>
 <script src="../assets/js/cars.js"></script>
 <script src="../content/chars-db.js"></script>
 <script src="../content/chars-db-1b.js"></script>
@@ -769,7 +770,7 @@
     ok('每个年代至少 4 辆', eras.every(function (e) { return Cars.byEra(e.id).length >= 4; }));
     ok('车模是分层绘制的侧视图', cars.every(function (c) {
       var s = Cars.svg(c);
-      return s.indexOf('clipPath') > 0 && s.indexOf('linearGradient') > 0 &&
+      return s.indexOf('<path') > 0 && s.indexOf('linearGradient') > 0 &&
         (s.match(/<circle/g) || []).length >= 6;
     }));
     ok('星价按年代递增', (function () {
