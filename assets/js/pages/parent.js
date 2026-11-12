@@ -7,6 +7,7 @@
     { key: 'kids', label: '孩子' },
     { key: 'review', label: '批改' },
     { key: 'peek', label: '看题' },
+    { key: 'exam', label: '真题', href: '#/exam' },
     { key: 'settings', label: '设置' },
     { key: 'data', label: '数据' },
     { key: 'ai', label: 'AI 评分' }
@@ -34,7 +35,7 @@
     TABS.forEach(function (t) {
       tabs.appendChild(U.h('button', {
         class: t.key === tab ? 'on' : '', text: t.label,
-        onclick: function () { App.go('#/parent?tab=' + t.key); }
+        onclick: function () { App.go(t.href || ('#/parent?tab=' + t.key)); }
       }));
     });
     view.appendChild(tabs);
@@ -89,6 +90,12 @@
       class: 'btn btn-sm', text: '🖨 打印下一个数学节点',
       onclick: function () { App.go('#/print?node=math:' + pp.sx.unit + ':' + pp.sx.node); }
     }));
+    if (w.Exam && w.Exam.papers().length) {
+      ops.appendChild(U.h('button', {
+        class: 'btn btn-sm btn-blue', text: '📄 真题题库（' + w.Exam.papers().length + ' 份）',
+        onclick: function () { App.go('#/exam'); }
+      }));
+    }
     c.appendChild(ops);
     view.appendChild(c);
 

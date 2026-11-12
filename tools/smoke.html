@@ -45,6 +45,7 @@
 <script src="../assets/js/badges.js"></script>
 <script src="../assets/js/cars-art.js"></script>
 <script src="../assets/js/cars.js"></script>
+<script src="../assets/js/exam.js"></script>
 <script src="../content/chars-db.js"></script>
 <script src="../content/chars-db-1b.js"></script>
 <script src="../content/py-presets.js"></script>
@@ -56,6 +57,7 @@
 <script src="../content/yw-1b.js"></script>
 <script src="../content/sx-1a.js"></script>
 <script src="../content/sx-1b.js"></script>
+<script src="../content/exam-sx-1a.js"></script>
 <script src="../assets/js/content.js"></script>
 <script src="../assets/js/app.js"></script>
 <script src="../assets/js/pages/setup.js"></script>
@@ -68,6 +70,8 @@
 <script src="../assets/js/pages/parent.js"></script>
 <script src="../assets/js/pages/review.js"></script>
 <script src="../assets/js/pages/print.js"></script>
+<script src="../assets/js/pages/exam.js"></script>
+<script src="../assets/js/pages/paper.js"></script>
 <script src="../assets/js/pages/peek.js"></script>
 
 <script>
@@ -810,15 +814,22 @@
         has('car_veyron', 'ccurve') && has('car_r8', 'sideblade') &&
         has('car_cybertruck', 'stainless') && has('car_su7', 'lidar');
     })());
-    ok('双色/碳顶挖掉玻璃、玻璃仍是蓝的', cars.filter(function (c) {
+    /* 手绘版车模是逐车画的（不靠 evenodd 挖洞），这里只钉两件真会出错的事：
+       ① 双色车的第二色必须真的落到 SVG 里；② 任何车都不能残留没替换的色占位符。 */
+    var twoToneBad = [];
+    cars.filter(function (c) {
+      return c.roof2 && ((c.sig || []).indexOf('twotone') >= 0 || (c.sig || []).indexOf('twotoneWide') >= 0);
+    }).forEach(function (c) {
+      var t = Cars.svg(c);
+      if (t.indexOf(c.roof2) <= 0) twoToneBad.push(c.id + '(' + c.roof2 + ')');
+    });
+    ok('双色车的第二色真的画进车顶', twoToneBad.length === 0 && Cars.all().filter(function (c) {
+      return c.roof2 && ((c.sig || []).indexOf('twotone') >= 0 || (c.sig || []).indexOf('twotoneWide') >= 0);
+    }).length >= 3, twoToneBad.join(' '));
+    ok('碳顶车标注了车顶特征', cars.filter(function (c) {
       var sg = c.sig || [];
-      return sg.indexOf('twotone') >= 0 || sg.indexOf('twotoneWide') >= 0 ||
-        sg.indexOf('carbonRoof') >= 0 || sg.indexOf('blackRoof') >= 0;
-    }).every(function (c) {
-      var t = Cars.svg(c), sg = c.sig || [];
-      var color = (sg.indexOf('twotone') >= 0 || sg.indexOf('twotoneWide') >= 0) ? c.roof2 : '#2C3038';
-      return !!color && t.indexOf(color) > 0 && t.indexOf('fill-rule="evenodd"') > 0;
-    }));
+      return sg.indexOf('carbonRoof') >= 0 || sg.indexOf('blackRoof') >= 0;
+    }).every(function (c) { return Cars.svg(c).indexOf('__') < 0; }));
     ok('未解锁时 owned 为空', Cars.owned([]).length === 0);
     ok('解锁后 owned 能查到', Cars.owned([cars[0].id]).length === 1);
 
@@ -1132,6 +1143,150 @@
     });
   }
 
+  /* ---------------- 真题题库 ---------------- */
+  function examBank() {
+    section('真题题库与仿造卷');
+    var bank = window.EXAM_BANK || [];
+    ok('题库已装载', bank.length >= 1, bank.length + ' 份');
+    var p = bank[0];
+    ok('试卷按年级和单元归档', p.grade === 1 && p.units.join(',') === '1,2',
+      p.grade + '年级 / 第' + p.units.join('–') + '单元');
+    ok('六大题齐全', p.sections.length === 6, p.sections.map(function (x) { return x.no; }).join(''));
+    ok('题量与分值', Exam.countOf(p) === 24 && Exam.scoreOf(p) === 100,
+      Exam.countOf(p) + ' 题 / ' + Exam.scoreOf(p) + ' 分');
+    ok('分组列表可读', (function () {
+      var g = Exam.groups();
+      return g.length === 1 && /一年级/.test(g[0].label) && /第 1–2 单元/.test(g[0].label);
+    })(), Exam.groups()[0].label);
+
+    /* 每题的空格数与答案数必须一致，否则打印出来会对不上答案 */
+    var mismatch = [];
+    Exam.items(p).forEach(function (it) {
+      if (it.k === 'choice' || it.k === 'pick-problem') return;
+      var node = Exam.renderItem(it, { showAns: false });
+      var n = node.querySelectorAll('.ex-box').length + node.querySelectorAll('.ex-op').length;
+      if (n !== (it.ans || []).length) mismatch.push(it.no + ':' + n + '/' + (it.ans || []).length);
+    });
+    ok('每题空格数与答案数一致', mismatch.length === 0, mismatch.join(' '));
+
+    /* 涂一涂：每组图案后面要跟一个 ▢○▢ 的比较式 */
+    var cc = Exam.items(p).filter(function (it) { return it.k === 'color-compare'; })[0];
+    var ccNode = Exam.renderItem(cc, { showAns: false });
+    var eqs = ccNode.querySelectorAll('.ex-color-eq');
+    var eqOk = !!cc && eqs.length === (cc.rows || []).length;
+    for (var ei = 0; ei < eqs.length; ei++) {
+      if (eqs[ei].querySelectorAll('.ex-box').length !== 2) eqOk = false;
+      if (eqs[ei].querySelectorAll('.ex-op').length !== 1) eqOk = false;
+    }
+    ok('涂一涂每组后面有 ▢○▢ 式子', eqOk, eqs.length + ' 组');
+    ok('涂一涂式子答案跟着涂色个数走', (function () {
+      var want = [];
+      cc.rows.forEach(function (r) {
+        var n = Number(r.n), b = Number(r.base);
+        want.push(String(n), n < b ? '<' : (n > b ? '>' : '='), String(b));
+      });
+      return JSON.stringify(want) === JSON.stringify(cc.ans);
+    })(), cc.ans.join(' '));
+    ok('涂一涂“比多少”与图上个数对得上', cc.rows.every(function (r) {
+      if (r.rel === '少') return r.n < r.base;
+      if (r.rel === '多') return r.n > r.base;
+      return r.n === r.base;
+    }), cc.rows.map(function (r) { return r.a + r.n + '/' + r.base; }).join(' '));
+
+    /* 原卷铅笔答案要能对上标准答案 */
+    var rows = Exam.compareRows(p);
+    ok('原卷作答记录可对照', rows.length >= 8, rows.length + ' 组');
+    ok('原卷有错题可诊断', rows.filter(function (r) { return r.right < r.total; }).length >= 2,
+      rows.filter(function (r) { return r.right < r.total; }).map(function (r) { return r.no; }).join('、'));
+
+    /* 变式：同 seed 稳定、换 seed 会变 */
+    var v1 = Exam.variant(p, '12345');
+    var v2 = Exam.variant(p, '12345');
+    var v3 = Exam.variant(p, '99999');
+    ok('同一编号出的卷子完全一样', JSON.stringify(Exam.items(v1)) === JSON.stringify(Exam.items(v2)));
+    ok('换编号数字会变', (function () {
+      var a = Exam.items(v1), b = Exam.items(v3), diff = 0;
+      a.forEach(function (it, i) {
+        if (JSON.stringify(it.ans) !== JSON.stringify(b[i].ans)) diff++;
+      });
+      return diff >= 5;
+    })(), '至少 5 题数值不同');
+
+    ok('仿造卷结构与原卷一致', (function () {
+      return v1.sections.length === p.sections.length &&
+        v1.sections.every(function (s, i) { return s.items.length === p.sections[i].items.length; });
+    })());
+    ok('仿造卷分值不变', Exam.scoreOf(v1) === Exam.scoreOf(p), Exam.scoreOf(v1) + ' 分');
+    ok('仿造卷涂一涂算式跟着重算', (function () {
+      var cv = Exam.items(v1).filter(function (it) { return it.k === 'color-compare'; })[0];
+      if (!cv || (cv.ans || []).length !== (cv.rows || []).length * 3) return false;
+      var node = Exam.renderItem(cv, { showAns: false });
+      if (node.querySelectorAll('.ex-color-eq').length !== cv.rows.length) return false;
+      return cv.rows.every(function (r, i) {
+        if (r.rel === '少' && !(r.n < r.base)) return false;
+        if (r.rel === '多' && !(r.n > r.base)) return false;
+        if (r.rel === '同样多' && r.n !== r.base) return false;
+        var want = [String(r.n), r.n < r.base ? '<' : (r.n > r.base ? '>' : '='), String(r.base)];
+        return JSON.stringify(want) === JSON.stringify(cv.ans.slice(i * 3, i * 3 + 3));
+      });
+    })());
+
+    /* 仿造卷的口算必须自己算得通，且都在 10 以内 */
+    ok('仿造卷口算自洽且在 10 以内', (function () {
+      var it = Exam.items(v1).filter(function (x) { return x.k === 'compute'; })[0];
+      function val(e) {
+        var s = e.replace(/\s/g, '');
+        var nums = s.split(/[+\-]/).map(Number);
+        var ops = s.split(/\d+/).filter(Boolean);
+        var v = nums[0];
+        for (var i = 0; i < ops.length; i++) v = ops[i] === '+' ? v + nums[i + 1] : v - nums[i + 1];
+        return v;
+      }
+      return it.list.every(function (e, i) {
+        var v = val(e);
+        return String(v) === String(it.ans[i]) && v >= 0 && v <= 10;
+      });
+    })());
+
+    /* 渲染整卷 */
+    var sheet = Exam.renderPaper(p, { showAns: false, variant: false, date: '2026-11-12' });
+    ok('整卷渲染出 24 道题', sheet.querySelectorAll('.ex-item').length === 24,
+      sheet.querySelectorAll('.ex-item').length + ' 道');
+    ok('整卷有六个大题标题', sheet.querySelectorAll('.pr-section').length === 6);
+
+    var vSheet = Exam.renderPaper(v1, { showAns: true, variant: true, seed: '12345' });
+    ok('仿造卷标题标明来源', vSheet.textContent.indexOf('仿造卷') >= 0);
+    ok('显示答案时答案填进方框', vSheet.querySelectorAll('.ex-box.is-ans').length >= 20,
+      vSheet.querySelectorAll('.ex-box.is-ans').length + ' 处');
+    ok('答案页列出六大题', vSheet.querySelectorAll('.ex-ans-sec').length === 6);
+
+    /* 页面：未解锁要拦、解锁能进 */
+    var realUnlocked = App.isUnlocked;
+    var view = document.getElementById('view');
+    App.isUnlocked = function () { return false; };
+    return goto('#/exam').then(function () {
+      ok('未解锁时真题页要密码', view.textContent.indexOf('🔒') >= 0 && view.textContent.indexOf('家长密码') >= 0);
+      App.isUnlocked = function () { return true; };
+      return goto('#/exam');
+    }).then(function () {
+      ok('解锁后看到试卷列表', view.textContent.indexOf('一年级期中复习三') >= 0);
+      ok('列表标明归档单元', view.textContent.indexOf('第 1–2 单元') >= 0);
+      ok('有仿造按钮', view.textContent.indexOf('仿造一份') >= 0);
+      return goto('#/exam?open=' + encodeURIComponent(p.id));
+    }).then(function () {
+      ok('题录展开显示答案与错题', view.textContent.indexOf('原卷') >= 0 && view.textContent.indexOf('答案') >= 0);
+      return goto('#/paper?id=' + encodeURIComponent(p.id) + '&seed=12345&ans=1');
+    }).then(function () {
+      ok('试卷页渲染成功', document.querySelectorAll('.paper-stage .ex-item').length === 24);
+      ok('试卷页有打印按钮', view.textContent.indexOf('打印这张') >= 0);
+      App.isUnlocked = realUnlocked;
+      return goto('#/today');
+    }).catch(function (e) {
+      App.isUnlocked = realUnlocked;
+      fail++; out.push('EXCEPTION(examBank): ' + e.message);
+    });
+  }
+
   interaction().catch(function (e) {
     fail++; out.push('EXCEPTION(interaction): ' + e.message);
   }).then(function () {
@@ -1144,6 +1299,8 @@
     return writingFlow();
   }).then(function () {
     try { badgeAndCars(); } catch (e) { fail++; out.push('EXCEPTION(badgeAndCars): ' + e.message); }
+  }).then(function () {
+    try { return examBank(); } catch (e) { fail++; out.push('EXCEPTION(examBank): ' + e.message); }
   }).then(function () {
     renderResults();
     document.title = '冒烟测试：' + pass + ' 通过 / ' + fail + ' 失败';
