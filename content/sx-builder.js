@@ -542,11 +542,13 @@
         if (uniq[s]) ok = false; uniq[s] = 1;
       });
       if (!ok) return null;
+      /* 题干里不能出现得数（「4 + 3 = 7，下面哪道也得 7」等于把答案写在题目上），
+         只问「和 4 + 3 得数相等的是哪一个」，得数留给孩子自己算 */
       return CQ({ kind: '凑等式',
-        stem: base + ' = ' + target + '，下面哪道也得 ' + target + '？',
+        stem: '和 ' + base + ' 得数相等的式子是哪一个？',
         answer: right, distractors: wrong,
-        explain: '只有 ' + right + ' = ' + target + '，另外三道得数分别是 ' +
-          (target + 1) + '、' + (target - 1) + '、' + (target + 2) + '。' }, rnd);
+        explain: base + ' = ' + target + '，只有 ' + right + ' = ' + target +
+          '；另外三道得数分别是 ' + (target + 1) + '、' + (target - 1) + '、' + (target + 2) + '。' }, rnd);
     },
     /* 12. 逆向求原数：飞走的 + 剩下的 */
     function (rnd, max) {
@@ -807,7 +809,7 @@
         var wrong = [expr(t + 1, rnd), expr(t - 1, rnd), expr(t + 2, rnd)];
         var all = wrong.concat([right, base]), ok = new Set(all).size === all.length;
         if (!ok) return null;
-        return UQ({ stem: '下面哪道算式和 ' + base + ' 的得数一样？', answer: right,
+        return UQ({ stem: '下面哪道算式的得数和 ' + base + ' 相同？', answer: right,
           distractors: wrong,
           explain: '只有 ' + right + ' = ' + t + '，另外三道得数是 ' +
             (t + 1) + '、' + (t - 1) + '、' + (t + 2) + '。' }, rnd);

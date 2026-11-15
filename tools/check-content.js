@@ -312,6 +312,11 @@ BOOKS.forEach(bid => {
       // 「广播的 b」那种把答案写在题干里的送分题不能再出现
       if ((it.stem.match(/\d+/g) || []).includes(ans)) { chBad++; err(`${it.id} 题干直接含答案 ${ans}`); }
     }
+    /* 题干里不许写出「算式 = 得数」——「4 + 3 = 7，下面哪道也得 7」等于把答案写在题目上。
+       9 + 6 = 6 + □ 这种「等号右边还是算式」的交换加数题不算。 */
+    if (/\d\s*[+＋−-]\s*\d+\s*=\s*\d+(?!\s*[+＋−-])/.test(it.stem)) {
+      chBad++; err(`${it.id} 题干写出了得数：${it.stem}`);
+    }
     const m = it.stem.match(/(\d+) > □ > (\d+)/);
     if (m && it.stem.includes('下面哪个数能填')) {
       const hi = +m[1], lo = +m[2];
@@ -351,6 +356,9 @@ let upN = 0, upBad = 0;
     if (/^\d+$/.test(ans)) {
       if ((it.stem.match(/\d+/g) || []).includes(ans)) { upBad++; err(`${it.id} 题干直接含答案 ${ans}`); }
       if (!(it.explain || '').includes(ans)) { upBad++; err(`${it.id} 解析与答案不一致`); }
+    }
+    if (/\d\s*[+＋−-]\s*\d+\s*=\s*\d+(?!\s*[+＋−-])/.test(it.stem)) {
+      upBad++; err(`${it.id} 题干写出了得数：${it.stem}`);
     }
     const nums = (it.stem + ' ' + o.join(' ')).match(/\d+/g) || [];
     if (Math.max(0, ...nums.map(Number)) > cap) { upBad++; err(`${it.id} 超出本单元数域 ${cap}：${it.stem}`); }
