@@ -1459,6 +1459,21 @@
       keys: ['final', 'mixed', 'pattern', 'addsub100'] }
   ]);
 
+
+  /* 高阶题：两步应用题 + 挑战题（content/sx-hard.js）
+     一下前半段数域 20 以内，100 以内那几单元放宽到 100；
+     期末复习单元题量最大（应用题 3 道、挑战题 4 道）。 */
+  w.SXHard.decorate(UNITS, [
+    { unit: 'u1', max: 20, apply: 1, challenge: 2 },
+    { unit: 'u2', max: 20, apply: 1, challenge: 2 },
+    { unit: 'u3', max: 20, apply: 1, challenge: 2 },
+    { unit: 'u4', max: 100, apply: 2, challenge: 3 },
+    { unit: 'u5', max: 100, apply: 2, challenge: 3 },
+    { unit: 'u6', max: 100, apply: 2, challenge: 4 },
+    { unit: 'u7', max: 100, apply: 2, challenge: 3 },
+    { unit: 'u8', max: 100, apply: 3, challenge: 4 }
+  ]);
+
   w.CONTENT = w.CONTENT || {};
   w.CONTENT['sx-1b'] = w.SXBuilder.build(UNITS, {
     bookId: 'sx-1b', code: 'sx1b', name: '数学 · 一年级下册', stage: '一下'

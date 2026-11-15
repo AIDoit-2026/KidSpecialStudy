@@ -274,6 +274,22 @@
     setCache(kid.id + '_mistakes', m);
     notify('mistakes');
   }
+  /* ---------------- 期中 / 期末考 ----------------
+     按「册次 + 期中/期末 + 学年」存一条成绩；同一次考试重考就覆盖。 */
+  function exams() {
+    var kid = activeKid(); if (!kid) return {};
+    return cached(kid.id + '_exams', {});
+  }
+  function examOf(key) { return exams()[key] || null; }
+  function saveExam(rec) {
+    var kid = activeKid(); if (!kid) return null;
+    if (!rec || !rec.key) return null;
+    var m = Object.assign({}, exams());
+    m[rec.key] = rec;
+    setCache(kid.id + '_exams', m);
+    notify('exams');
+    return rec;
+  }
   /* 答错 → box1 明天复习；复习答对 → box+1，间隔 3/7 天；box>3 移出 */
   function recordAnswer(item, correct, opts) {
     opts = opts || {};
@@ -296,10 +312,15 @@
     }
     saveMistakes(m);
   }
+  /* 到期待复习的错题：到期日早的先复习（原来按入库顺序，前面几道会一直占位） */
   function dueMistakes(date) {
     var m = mistakes();
     return Object.keys(m).map(function (k) { return m[k]; })
-      .filter(function (r) { return (r.dueDate || '9999') <= date; });
+      .filter(function (r) { return (r.dueDate || '9999') <= date; })
+      .sort(function (a, b) {
+        var x = a.dueDate || '9999', y = b.dueDate || '9999';
+        return x < y ? -1 : (x > y ? 1 : 0);
+      });
   }
 
   /* ---------------- 写字记录 ---------------- */
@@ -802,6 +823,7 @@
     days: days, day: day, saveDay: saveDay, ensureDay: ensureDay,
     attempts: attempts, addAttempt: addAttempt, attemptsOf: attemptsOf,
     mistakes: mistakes, mistakeOf: mistakeOf, recordAnswer: recordAnswer, dueMistakes: dueMistakes, saveMistakes: saveMistakes,
+    exams: exams, examOf: examOf, saveExam: saveExam,
     writingList: writingList, writingOf: writingOf, saveWriting: saveWriting, pendingReviews: pendingReviews,
     stars: stars, addStars: addStars, decor: decor, unlockDecor: unlockDecor,
     photoPut: photoPut, photoGet: photoGet, photoAll: photoAll, photoDelete: photoDelete,

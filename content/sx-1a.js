@@ -1426,6 +1426,19 @@
       keys: ['mixed', 'array9', 'jump', 'makeEq', 'reverse', 'cmpExpr'] }
   ]);
 
+
+  /* 高阶题：两步应用题 + 挑战题（content/sx-hard.js）
+     准备课还没学加减，不出；5 以内从加法那一课开始，每课 1 道应用题。
+     越往后题量越大：挑战题 1 → 4 道，应用题 1 → 2 道，难度跟着学期往上走。 */
+  w.SXHard.decorate(UNITS, [
+    { unit: 'u1', max: 5, apply: 1, challenge: 1, from: 4 },
+    { unit: 'u2', max: 10, apply: 1, challenge: 2 },
+    { unit: 'u3', max: 10, apply: 1, challenge: 2 },
+    { unit: 'u4', max: 20, apply: 1, challenge: 3 },
+    { unit: 'u5', max: 20, apply: 2, challenge: 3 },
+    { unit: 'u6', max: 20, apply: 2, challenge: 4 }
+  ]);
+
   w.CONTENT = w.CONTENT || {};
   w.CONTENT['sx-1a'] = w.SXBuilder.build(UNITS, {
     bookId: 'sx-1a', code: 'sx1a', name: '数学 · 一年级上册', stage: '一上'

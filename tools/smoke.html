@@ -46,11 +46,14 @@
 <script src="../assets/js/cars-art.js"></script>
 <script src="../assets/js/cars.js"></script>
 <script src="../assets/js/exam.js"></script>
+<script src="../assets/js/examgen.js"></script>
 <script src="../content/chars-db.js"></script>
 <script src="../content/chars-db-1b.js"></script>
 <script src="../content/py-presets.js"></script>
+<script src="../content/yw-extra.js"></script>
 <script src="../content/yw-builder.js"></script>
 <script src="../content/sx-builder.js"></script>
+<script src="../content/sx-hard.js"></script>
 <script src="../content/writing-1a.js"></script>
 <script src="../content/writing-1b.js"></script>
 <script src="../content/yw-1a.js"></script>
@@ -72,6 +75,7 @@
 <script src="../assets/js/pages/print.js"></script>
 <script src="../assets/js/pages/exam.js"></script>
 <script src="../assets/js/pages/paper.js"></script>
+<script src="../assets/js/pages/examday.js"></script>
 <script src="../assets/js/pages/peek.js"></script>
 
 <script>
@@ -227,9 +231,11 @@
     ok('语文题全书不重复', allDup === 0, '重复 ' + allDup);
     var shortNode = 0, charCount = 0, typeSet = {};
     Content.allNodes('chinese').forEach(function (n) {
-      var cn = n.items.filter(function (i) { return i.module === 'chars'; }).length;
+      var cn = n.items.filter(function (i) { return i.module === 'chars' && !i.ext; }).length;
       charCount += cn;
-      if (cn !== 5 || n.items.length !== 11) shortNode++;
+      /* 语文节点 = 5 认字 + 6 拼音 + 本课拓展题（近义 / 反义 / 成语 / 阅读） */
+      var extN = n.items.filter(function (i) { return !!i.ext; }).length;
+      if (cn !== 5 || n.items.length !== 11 + extN) shortNode++;
       n.items.forEach(function (i) {
         if (i.module === 'chars' && i.skill) typeSet[i.skill] = 1;
       });
@@ -271,7 +277,7 @@
       });
     });
     ok('七类送分题已全部下架', bannedHits === 0 && allCnItems > 0, '残留 ' + bannedHits + ' / 共 ' + allCnItems + ' 题');
-    ok('下架后全册题量不变', Content.stats().ywItems === 781 || Content.stats().ywItems === 737,
+    ok('下架后全册题量不变', Content.stats().ywItems === 951 || Content.stats().ywItems === 896,
       String(Content.stats().ywItems));
     /* 遍历四册：题干不能长得一模一样，也不能把答案写在题干里 */
     var cnItems = [], mathItems = [];
@@ -362,7 +368,7 @@
       var a = i.options ? String(i.options[i.answer]) : '';
       return !/^\d+$/.test(a) || (i.explain || '').indexOf(a) >= 0;
     }));
-    ok('数学题库题量', [440, 441].indexOf(Content.stats().sxItems) >= 0,
+    ok('数学题库题量', [584, 650].indexOf(Content.stats().sxItems) >= 0,
       String(Content.stats().sxItems));
 
     /* 单元知识点题：第 9/10 周试卷变式 + 后面单元（一上立体图形 / 11~20 /
@@ -519,6 +525,19 @@
     Store.recordAnswer(wrongItem, false, {});
     ok('错题入库', !!Store.mistakeOf(wrongItem.id));
     ok('次日复习', Store.mistakeOf(wrongItem.id).dueDate === U.addDays(U.today(), 1));
+
+    /* 复习答对必须把间隔推后，否则同一道错题会天天到期、天天出现在练习里 */
+    var revItem = allItems[1];
+    Store.recordAnswer(revItem, false, {});
+    Store.recordAnswer(revItem, true, { review: true });
+    ok('复习答对→3 天后', Store.mistakeOf(revItem.id).dueDate === U.addDays(U.today(), 3),
+      Store.mistakeOf(revItem.id).dueDate);
+    ok('推后后当天不再到期', Store.dueMistakes(U.today()).every(function (r) { return r.itemId !== revItem.id; }));
+    Store.recordAnswer(revItem, true, { review: true });
+    ok('再答对→7 天后', Store.mistakeOf(revItem.id).dueDate === U.addDays(U.today(), 7),
+      Store.mistakeOf(revItem.id).dueDate);
+    Store.recordAnswer(revItem, true, { review: true });
+    ok('连对三次移出错题本', !Store.mistakeOf(revItem.id));
 
     /* 打卡前置校验 */
     var beforePhoto = Task.canCheckin(Store.day(U.today()).plan[0]);
@@ -1030,6 +1049,21 @@
     ok('连续天数把今天算上', App.streak() === 1, '实际 ' + App.streak());
     ok('重排不会抹掉打卡', Task.checkedIn(Task.rebuild(t)) === true && App.streak() === 1);
 
+    /* 题库 / 难度规则改了以后，浏览器里昨天存下的旧计划要自动换成新题；
+       孩子动过的计划（答过题 / 已开始）不能被打断，等家长手动重排 */
+    section('计划版本升级');
+    var V = Store.day(t).planVersion;
+    var tm = U.addDays(t, 1);
+    var stale = JSON.parse(JSON.stringify(Task.rebuild(tm)));
+    stale.planVersion = 3;
+    stale.plan.forEach(function (s) { s.status = 'todo'; s.startedAt = null; s.answers = {}; });
+    Store.saveDay(tm, stale);
+    ok('没动过的旧计划自动换新题', Task.ensure(tm).planVersion === V, '实际 ' + Task.ensure(tm).planVersion);
+    stale.plan[0].status = 'done';
+    Store.saveDay(tm, stale);
+    ok('已经动过的旧计划不打断', Task.ensure(tm).planVersion === 3, '实际 ' + Task.ensure(tm).planVersion);
+    Task.rebuild(tm);
+
     /* 写字任务完成 ≠ AI 点评完成；家长跳过也算完成 */
     ok('有照片即算写字完成', Task.writingOK({ chars: ['天'], photoId: 'p1' }) === true);
     ok('家长跳过也算写字完成', Task.writingOK({ chars: ['天'], photoId: null, writingSkipped: true }) === true);
@@ -1144,6 +1178,109 @@
   }
 
   /* ---------------- 真题题库 ---------------- */
+
+  /* 高阶题型 / 难度配比 / 期中期末考 */
+  function highLevel() {
+    var cn = [];
+    ['yw-1a', 'yw-1b'].forEach(function (bid) {
+      Content.book(bid).units.forEach(function (u) {
+        u.nodes.forEach(function (n) { n.items.forEach(function (i) { if (i.ext) cn.push(i); }); });
+      });
+    });
+    var kinds = {};
+    cn.forEach(function (i) { kinds[i.ext] = (kinds[i.ext] || 0) + 1; });
+    ok('语文新增近义/反义/成语/阅读题',
+      kinds.antonym >= 80 && kinds.synonym >= 80 && kinds.idiom >= 40 && kinds.reading >= 24,
+      JSON.stringify(kinds));
+
+    /* 反义题：正确答案必须就是词表里的反义配对 */
+    var pairMap = {};
+    (window.YWExtra.ANTONYMS || []).forEach(function (p) { pairMap[p[0]] = p[1]; pairMap[p[1]] = p[0]; });
+    var antiN = 0, antiBad = 0;
+    cn.filter(function (i) { return i.ext === 'antonym'; }).forEach(function (i) {
+      antiN++;
+      var m = (i.stem || '').match(/「(.+?)」/);
+      var right = i.options ? i.options[i.answer] : '';
+      if (!m || pairMap[m[1]] !== right) antiBad++;
+    });
+    ok('反义词答案与词表一致', antiN > 0 && antiBad === 0, antiBad + '/' + antiN);
+
+    /* 近义题：干扰项不能和答案在同一组近义词里 */
+    var group = {};
+    (window.YWExtra.SYNONYM_GROUPS || []).forEach(function (g, gi) { g.forEach(function (x) { group[x] = gi; }); });
+    var synN = 0, synBad = 0;
+    cn.filter(function (i) { return i.ext === 'synonym'; }).forEach(function (i) {
+      synN++;
+      var m = (i.stem || '').match(/「(.+?)」/);
+      var right = i.options ? i.options[i.answer] : '';
+      if (!m || group[m[1]] !== group[right]) synBad++;
+      (i.options || []).forEach(function (o, k) {
+        if (k !== i.answer && group[o] === group[right]) synBad++;
+      });
+    });
+    ok('近义词干扰项不同义', synN > 0 && synBad === 0, synBad + '/' + synN);
+
+    /* 阅读：每题都带短文，且同一篇短文的题成对出现 */
+    var reads = cn.filter(function (i) { return i.ext === 'reading'; });
+    ok('阅读题都带短文', reads.length > 0 && reads.every(function (i) {
+      return i.fig && i.fig.type === 'passage' && (i.fig.text || '').length > 30;
+    }), reads.length + ' 题');
+    ok('阅读题按篇成对', (function () {
+      var by = {};
+      reads.forEach(function (i) { var t = i.fig && i.fig.title; (by[t] = by[t] || []).push(i); });
+      var keys = Object.keys(by);
+      var paired = keys.filter(function (t) { return by[t].length >= 2; }).length;
+      return keys.length > 0 && paired / keys.length >= 0.75;
+    })());
+
+    /* 数学：应用题与挑战题的总量 */
+    ['sx-1a', 'sx-1b'].forEach(function (bid) {
+      var b = Content.book(bid), ap = 0, ch = 0;
+      b.units.forEach(function (u) { u.nodes.forEach(function (n) {
+        n.items.forEach(function (i) { if (i.ext === 'apply') ap++; if (i.type === 'challenge') ch++; });
+      }); });
+      ok(bid + ' 两步应用题已铺开', ap >= 30, ap + ' 道');
+      ok(bid + ' 挑战题已加量', ch >= 120, ch + ' 道');
+    });
+
+    /* 难度配比：期末要比学期初难，且学期中段起不再出最低阶数学题 */
+    var early = Task.diffCfg('math', { unit: 0, node: 0 });
+    var late = Task.diffCfg('math', { unit: 6, node: 3 });
+    ok('难度随学期线性上升',
+      late.ch > early.ch && late.apply >= early.apply && early.allowBasic && !late.allowBasic,
+      'ch ' + early.ch + '→' + late.ch + '，ap ' + early.apply + '→' + late.apply);
+
+    /* 期中 / 期末考试：排期、题量、分科、题型覆盖、固定组卷、满分 */
+    var list = ExamGen.schedule(U.today());
+    ok('期中期末各排一场', list.length === 2 && list[0].kind === 'mid' && list[1].kind === 'final',
+      list.map(function (x) { return x.label + '@' + x.date; }).join(' / '));
+    var cur = { yw: { unit: 5, node: 3 }, sx: { unit: 5, node: 3 } };
+    var paper = ExamGen.build('yw-1a', 'mid', cur, U.today());
+    ok('期中卷 20 题 100 分', paper.questions.length === 20 && paper.total === 100,
+      paper.questions.length + ' 题 / ' + paper.total + ' 分');
+    var ywN = paper.questions.filter(function (q) { return q.item.module !== 'math'; }).length;
+    ok('语文数学各 10 题', ywN === 10, ywN + ' / ' + (paper.questions.length - ywN));
+    ok('考试覆盖阅读 / 应用题 / 挑战题', (function () {
+      var r = false, a = false, c = false;
+      paper.questions.forEach(function (q) {
+        if (q.item.ext === 'reading') r = true;
+        if (q.item.ext === 'apply') a = true;
+        if (q.item.type === 'challenge') c = true;
+      });
+      return r && a && c;
+    })());
+    ok('每题选项都不重复', paper.questions.every(function (q) {
+      return q.options.length >= 2 && new Set(q.options).size === q.options.length;
+    }));
+    var paper2 = ExamGen.build('yw-1a', 'mid', cur, U.today());
+    ok('同一次考试组卷固定', JSON.stringify(paper.questions.map(function (q) { return q.item.id; })) ===
+      JSON.stringify(paper2.questions.map(function (q) { return q.item.id; })));
+    var answers = {};
+    paper.questions.forEach(function (q, i) { answers[i] = q.answer; });
+    var g = ExamGen.grade(paper, answers);
+    ok('全对得 100 分', g.score === 100 && g.wrong.length === 0, g.score + ' 分');
+  }
+
   function examBank() {
     section('真题题库与仿造卷');
     var bank = window.EXAM_BANK || [];
@@ -1299,6 +1436,8 @@
     return writingFlow();
   }).then(function () {
     try { badgeAndCars(); } catch (e) { fail++; out.push('EXCEPTION(badgeAndCars): ' + e.message); }
+  }).then(function () {
+    try { highLevel(); } catch (e) { fail++; out.push('EXCEPTION(highLevel): ' + e.message); }
   }).then(function () {
     try { return examBank(); } catch (e) { fail++; out.push('EXCEPTION(examBank): ' + e.message); }
   }).then(function () {

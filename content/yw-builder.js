@@ -722,11 +722,34 @@
         });
         var pyItems = buildPinyinItems(w.PY_PRESETS[node.py] || w.PY_PRESETS.basic, node, unit, ni, covered);
         node.chars.forEach(function (c) { if (covered.indexOf(c) < 0) covered.push(c); });
-        items = items.concat(pyItems);
+
+        /* 高阶题型：近义词 / 反义词 / 成语 / 短文阅读（content/yw-extra.js）
+           按单元进度铺开，插在认字题中间——每场只取前 7 道语文题，
+           放在这个位置才能保证拓展题真的进得了练习，而不是被截掉。 */
+        var extra = { items: [], reads: [] };
+        if (w.YWExtra) {
+          extra = w.YWExtra.build({
+            code: CODE, prefix: BOOK_PREFIX, unit: unit, node: node,
+            ni: ni, niTotal: unit.nodes.length,
+            unitIndex: ui, unitCount: units.length, used: USED_STEM
+          });
+        }
+        var extItems = (extra.reads || []).concat(extra.items || []);
+        extItems.forEach(function (it, k) {
+          it.id = CODE + '-' + unit.id + '-' + node.id + '-x' + (k + 1);
+          it.module = 'chars';          // 归到「认字」模块：练字、拼音之外的语文题都走这里
+          it.type = it.type || 'choice';
+          it.source = BOOK_PREFIX + ' · ' + unit.name.replace(/^[^·]*· /, '') + ' · ' + node.lesson;
+          if (!it.audio) it.audio = it.stem.replace(/[「」？?，。、：（）]/g, ' ');
+          USED_STEM[it.stem] = 1;
+        });
+        /* 认字 2 道 → 拓展题 → 剩下 3 道认字，最后接拼音 */
+        items = items.slice(0, 2).concat(extItems, items.slice(2)).concat(pyItems);
         u.nodes.push({
           id: node.id, index: ni, title: node.lesson + ' · ' + node.title,
           lesson: node.lesson, chars: node.chars.slice(),
-          estimatedMin: 30, items: items
+          estimatedMin: 30, items: items,
+          ext: extItems.length
         });
       });
       content.units.push(u);

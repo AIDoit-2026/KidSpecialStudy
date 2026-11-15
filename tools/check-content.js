@@ -36,19 +36,24 @@ BOOKS.forEach(bid => {
       const nCmp = n.items.filter(i => i.type === 'cmp').length;
       const nCh = n.items.filter(i => i.type === 'challenge').length;
       const nUnit = n.items.filter(i => i.type === 'unit').length;
+      const nApply = n.items.filter(i => i.ext === 'apply').length;
       if (isCN) {
-        if (n.items.length !== wantPerNode) err(`${CN[bid]} ${u.id}/${n.id} 题量=${n.items.length}（应 ${wantPerNode}）`);
+        /* 语文节点 = 5 认字 + 6 拼音 + 本课拓展题（近义 / 反义 / 成语 / 短文阅读） */
+        const want = wantPerNode + (n.ext || 0);
+        if (n.items.length !== want) err(`${CN[bid]} ${u.id}/${n.id} 题量=${n.items.length}（应 ${want}）`);
       } else {
-        // 数学节点 = 5 道常规题 + 1~3 道比较式填数 + 0~2 道思维挑战 + 0~2 道单元知识点题
-        const normal = n.items.length - nCmp - nCh - nUnit;
+        // 数学节点 = 5 道常规题 + 1~3 道比较式填数 + 1~4 道思维挑战 + 0~2 道单元知识点题 + 1~3 道应用题
+        const normal = n.items.length - nCmp - nCh - nUnit - nApply;
         if (normal !== wantPerNode) err(`${CN[bid]} ${u.id}/${n.id} 常规题=${normal}（应 ${wantPerNode}）`);
         if (nCmp > 3) err(`${CN[bid]} ${u.id}/${n.id} 比较式填数 ${nCmp} 道（最多 3）`);
         if (n.ineq !== undefined && nCmp !== n.ineq) err(`${CN[bid]} ${u.id}/${n.id} 比较式填数 ${nCmp} 道（应 ${n.ineq}）`);
         if (n.ineq === undefined && nCmp) err(`${CN[bid]} ${u.id}/${n.id} 不该有比较式填数（前面还没学加减）`);
-        if (nCh > 2) err(`${CN[bid]} ${u.id}/${n.id} 思维挑战题 ${nCh} 道（最多 2）`);
+        if (nCh > 6) err(`${CN[bid]} ${u.id}/${n.id} 思维挑战题 ${nCh} 道（最多 6）`);
         if ((n.challenge || 0) !== nCh) err(`${CN[bid]} ${u.id}/${n.id} 思维挑战题 ${nCh} 道（应 ${n.challenge || 0}）`);
         if (nUnit > 2) err(`${CN[bid]} ${u.id}/${n.id} 单元知识点题 ${nUnit} 道（最多 2）`);
         if ((n.unitpack || 0) !== nUnit) err(`${CN[bid]} ${u.id}/${n.id} 单元知识点题 ${nUnit} 道（应 ${n.unitpack || 0}）`);
+        if (nApply > 3) err(`${CN[bid]} ${u.id}/${n.id} 应用题 ${nApply} 道（最多 3）`);
+        if ((n.apply || 0) !== nApply) err(`${CN[bid]} ${u.id}/${n.id} 应用题 ${nApply} 道（应 ${n.apply || 0}）`);
       }
       n.items.forEach(it => {
         total++;
@@ -97,7 +102,7 @@ console.log(`合计：${grand.nodes} 节点 / ${grand.items} 题`);
 console.log('\n=== 送分题下架检查 ===');
 const BANNED_STEM = /一共有几笔|可以组成下面哪个词|是第几声？|是声母还是韵母|是什么结构的字|的偏旁是哪个|像「广播」的 b|一竖在左|半圆在右下/;
 const BANNED_SKILL = /^认字\.(数笔画|选组词|字形结构|选偏旁)$|^拼音\.(声调|声母辨认|韵母辨认|字母分类|形近字母)$/;
-const WANT_ITEMS = { 'yw-1a': 781, 'yw-1b': 737, 'sx-1a': 440, 'sx-1b': 441 };
+const WANT_ITEMS = { 'yw-1a': 951, 'yw-1b': 896, 'sx-1a': 584, 'sx-1b': 650 };
 BOOKS.forEach(bid => {
   const b = ctx.CONTENT[bid];
   if (!b) return;
@@ -265,6 +270,11 @@ Object.keys(perBook).forEach(k => {
 console.log('覆盖：' + Object.keys(cover).map(k => k + ' ' + cover[k]).join(' / '));
 
 console.log('\n=== 思维挑战题（第 9/10 周试卷同款） ===');
+// 数域跟着教材走：一上 5 → 10 → 20；一下 20 → 100（第四单元「100 以内数的认识」之后放开）
+const CH_CAP = {
+  'sx-1a': { u0: 5, u1: 5, u2: 10, u3: 10, u4: 20, u5: 20, u6: 20 },
+  'sx-1b': { u1: 20, u2: 20, u3: 20, u4: 100, u5: 100, u6: 100, u7: 100, u8: 100 }
+};
 const chStems = new Set(), cmpStems = new Set(), chKinds = {};
 let chN = 0, chDup = 0, chBad = 0, cmpDup = 0;
 BOOKS.forEach(bid => {
@@ -281,8 +291,9 @@ BOOKS.forEach(bid => {
     }
     if (it.type !== 'challenge') return;
     chN++;
-    // 干扰项最容易冒出还没学过的数：6~10 单元只能到 10，11~20 之后才放开到 20
-    const cap = bid === 'sx-1a' ? ({ u2: 10, u3: 10, u4: 20, u5: 20, u6: 20 }[u.id] || 20) : 20;
+    // 干扰项最容易冒出还没学过的数：6~10 单元只能到 10，11~20 之后才放开到 20，
+    // 一下「100 以内数的认识」之后才放开到 100
+    const cap = (CH_CAP[bid] || {})[u.id] || 20;
     const allNums = (it.stem + ' ' + (it.options || []).join(' ')).match(/\d+/g) || [];
     if (Math.max(0, ...allNums.map(Number)) > cap) {
       chBad++; err(`${it.id} 超出本单元数域 ${cap}：${it.stem}`);
@@ -316,10 +327,7 @@ if (cmpDup) err(`比较式填数题干重复 ${cmpDup} 道`);
 console.log(`比较式题干 ${cmpStems.size} 道互不相同；挑战题题干唯一、答案唯一、解析一致`);
 
 console.log('\n=== 单元知识点题（试卷变式 + 后段单元同步题） ===');
-const PACK_CAP = {
-  'sx-1a': { u0: 5, u1: 5, u2: 10, u3: 10, u4: 20, u5: 20, u6: 20 },
-  'sx-1b': { u1: 20, u2: 20, u3: 20, u4: 100, u5: 100, u6: 100, u7: 100, u8: 100 }
-};
+const PACK_CAP = CH_CAP;   // 单元题与挑战题共用同一张数域表
 const PR = ctx.SXBuilder.PACK_RULES;
 const upStems = new Set(), upKinds = {}, upByUnit = {};
 let upN = 0, upBad = 0;

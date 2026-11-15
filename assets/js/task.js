@@ -202,37 +202,77 @@
      「思维挑战」1~2 道和「单元知识点题」1~2 道，插在中后段先热身再上难度。
      返回题数不超过 n，其余由 fillModule 补齐。dayUsed 里的题（当天别的场次
      出过，或题干与当天某题完全一样）直接跳过。 */
-  function pickMath(items, n, dayUsed, seed) {
-    var base = [], cmp = [], ch = [], unit = [];
+  /* 学习进度（0 = 刚开学，1 = 期末）：用来把题目的难度随学期往上推，
+     而不是整学期都是「数一数」「5 以内加法」这种一眼看出答案的题。 */
+  function progressFrac(subject, cur) {
+    var nodes = w.Content.allNodes(subject);
+    if (!nodes.length) return 0;
+    for (var i = 0; i < nodes.length; i++) {
+      if (nodes[i].unit === cur.unit && nodes[i].node === cur.node) {
+        return i / Math.max(1, nodes.length - 1);
+      }
+    }
+    /* 游标已越过最后一个节点（全册学完）：按「期末」算，别再退回最低难度 */
+    var last = nodes[nodes.length - 1];
+    if (cur.unit > last.unit || (cur.unit === last.unit && cur.node > last.node)) return 1;
+    return 0;
+  }
+
+  /* 难度配比：学期越往后，基础题越少、应用题 / 挑战题越多。
+     学期中段（40%）起不再出 level 1 的最低阶题。 */
+  function diffCfg(subject, cur) {
+    var f = progressFrac(subject, cur);
+    return {
+      frac: f,
+      allowBasic: f < 0.4,
+      ch: 1 + Math.round(f * 2),        // 挑战题 1 → 3 道
+      unit: f < 0.5 ? 1 : 2,            // 单元知识点题 1 → 2 道
+      cmp: f < 0.35 ? 1 : 2,            // 比较式填数 1 → 2 道
+      apply: f < 0.25 ? 1 : 2           // 两步应用题 1 → 2 道
+    };
+  }
+
+  /* 数学题挑选：热身基础题 → 应用题 → 比较式填数 → 挑战题 → 单元题 → 补基础。
+     各块的题数由 diffCfg 按进度给出：越到后面应用题和挑战题占比越高，
+     基础题只留开头一两道热身。dayUsed 里的题（当天别的场次出过、
+     或题干与当天某题完全一样）直接跳过。 */
+  function pickMath(items, n, dayUsed, seed, diff) {
+    var base = [], apply = [], cmp = [], ch = [], unit = [];
     items.forEach(function (it) {
       if (blockedByDay(it.id, dayUsed)) return;
       if (it.type === 'cmp') cmp.push(it.id);
       else if (it.type === 'challenge') ch.push(it.id);
       else if (it.type === 'unit') unit.push(it.id);
-      else if (it.module === 'math') base.push(it.id);
+      else if (it.ext === 'apply') apply.push(it.id);
+      else if (it.module === 'math') {
+        if (diff && !diff.allowBasic && it.level === 1) return;
+        base.push(it.id);
+      }
     });
-    var wantCmp = Math.min(3, cmp.length, Math.max(1, Math.round(n / 5)));
-    var wantCh = Math.min(2, ch.length, Math.max(1, Math.round(n / 8)));
-    var wantUnit = Math.min(2, unit.length, Math.max(1, Math.round(n / 6)));
-    var out = base.slice(0, Math.max(0, n - wantCmp - wantCh - wantUnit));
-    cmp.slice(0, wantCmp).forEach(function (id, i) {
-      out.splice(Math.min(1 + i * 2, out.length), 0, id);
-    });
-    ch.slice(0, wantCh).forEach(function (id, i) {
-      out.splice(Math.min(3 + i * 3, out.length), 0, id);
-    });
+    var cfg = diff || { ch: 1, unit: 1, cmp: 1, apply: 1 };
+    var wantApply = Math.min(cfg.apply, apply.length);
+    var wantCmp = Math.min(cfg.cmp, cmp.length);
+    var wantCh = Math.min(cfg.ch, ch.length);
+    var wantUnit = Math.min(cfg.unit, unit.length);
+    var room = Math.max(0, n - wantApply - wantCmp - wantCh - wantUnit);
+    var warm = base.slice(0, Math.min(2, room));
+    var rest = base.slice(warm.length, room);
+
+    var out = warm.slice();
+    apply.slice(0, wantApply).forEach(function (id) { out.push(id); });
+    cmp.slice(0, wantCmp).forEach(function (id) { out.push(id); });
+    ch.slice(0, wantCh).forEach(function (id) { out.push(id); });
     /* 单元题按场次轮换起点：一课里的两道新题不会永远只出第一道 */
     var uStart = unit.length ? seededIndex(seed || 'unit', unit.length) : 0;
-    for (var k = 0; k < wantUnit; k++) {
-      out.splice(Math.min(5 + k * 3, out.length), 0, unit[(uStart + k) % unit.length]);
-    }
+    for (var k = 0; k < wantUnit; k++) out.push(unit[(uStart + k) % unit.length]);
+    out = out.concat(rest);
     return out.slice(0, n);
   }
 
   /* 认字题过滤：偏旁题下架、笔顺类（第一笔 / 第 N 笔 / 最后一笔）每场合计最多 1 道。
      不足下限（认字题不能被掏空）就从已学课文补非笔顺题；
      剩下的缺口由 buildPlan 转成数学计算题。 */
-  function trimChars(ids, minKeep, date, slot, cur, dayUsed) {
+  function trimChars(ids, minKeep, date, slot, cur, dayUsed, prefer) {
     var kept = [], strokes = 0;
     ids.forEach(function (id) {
       var it = w.Content.item(id);
@@ -246,7 +286,7 @@
     if (kept.length < minKeep) {
       kept = fillModule(kept, 'chars', minKeep, date, slot, 'chinese', cur, function (it) {
         return !isBannedChar(it) && !isStrokeChar(it);
-      }, null, dayUsed);
+      }, prefer || null, dayUsed);
     }
     return kept;
   }
@@ -294,6 +334,9 @@
        得另建一张本场题干表，否则会塞进一道和本场某题一模一样的题。 */
     var sigs = {};
     target.forEach(function (id) { sigs[sigOf(id)] = 1; });
+    /* 本场已经塞进去的复习题位置：第二道错题不能把第一道顶掉
+       （以前靠 it._isReview 判断，但那个标记从没被赋值过） */
+    var inserted = {};
     due.slice(0, maxN).forEach(function (r) {
       if (target.indexOf(r.itemId) >= 0) return;
       if (blockedByDay(r.itemId, dayUsed)) return;   // 别从复习后门塞回当天出过的题
@@ -301,11 +344,11 @@
       if (accept && !accept(r.itemId, target)) return;
       // 替换掉最后一个非错题项
       for (var i = target.length - 1; i >= 0; i--) {
-        var it = w.Content.item(target[i]);
-        if (it && it._isReview) continue;
+        if (inserted[target[i]]) continue;
         if (target.indexOf(r.itemId) >= 0) return;
         delete sigs[sigOf(target[i])];
         target[i] = r.itemId;
+        inserted[r.itemId] = 1;
         sigs[sigOf(r.itemId)] = 1;
         used++;
         return;
@@ -353,18 +396,33 @@
       var sxNode = w.Content.nodeAtCursor('math', sxCur);
       var fresh = function (id) { return !blockedByDay(id, dayUsed); };
 
+      /* 语文：学期中段之后，补位优先取近义 / 反义 / 成语 / 阅读这类拓展题，
+         不再用「再看一个字」把题位填满；认字量由本课固定 5 个保证。 */
+      var dYw = diffCfg('chinese', ywCur);
+      var preferExt = dYw.frac > 0.4 ? function (it) { return !!it.ext; } : null;
       var chars = ywNode ? takeModule(ywNode.items, 'chars', cfg.mix.chars).filter(fresh) : [];
       var pinyin = ywNode ? takeModule(ywNode.items, 'pinyin', cfg.mix.pinyin).filter(fresh) : [];
-      chars = fillModule(chars, 'chars', cfg.mix.chars, date, i, 'chinese', ywCur, null, null, dayUsed);
+      chars = fillModule(chars, 'chars', cfg.mix.chars, date, i, 'chinese', ywCur, null, preferExt, dayUsed);
       pinyin = fillModule(pinyin, 'pinyin', cfg.mix.pinyin, date, i, 'chinese', ywCur, null, null, dayUsed);
 
       /* 偏旁题下架、笔顺题每场最多 1 道；少掉的认字题位全数转给数学。
          补位优先取「真要算」的加减题，计算题不够再用其它数学题兜底。 */
       var minChars = Math.max(3, Math.round(cfg.mix.chars * 0.6));
-      chars = trimChars(chars, minChars, date, i, ywCur, dayUsed);
+      chars = trimChars(chars, minChars, date, i, ywCur, dayUsed, preferExt);
       var mathN = cfg.mix.math + (cfg.mix.chars - chars.length);
-      var math = sxNode ? pickMath(sxNode.items, mathN, dayUsed, date + '#' + i) : [];
-      math = fillModule(math, 'math', mathN, date, i, 'math', sxCur, isPlainMath, isCalcMath, dayUsed);
+      var dMath = diffCfg('math', sxCur);
+      /* 全册学完（游标越过最后一个节点）时节点为空，改成从整册题池里挑，
+         否则后面的练习只剩「补位」的普通计算题，一道挑战题都没有 */
+      var sxItems = sxNode ? sxNode.items : (function () {
+        var a = [];
+        w.Content.allNodes('math').forEach(function (n) { a = a.concat(n.items); });
+        return a;
+      })();
+      var math = pickMath(sxItems, mathN, dayUsed, date + '#' + i, dMath);
+      /* 学期中段起不再补 level 1 的基础题；万一不够，再放宽一次，保证题量 */
+      var mathPick = dMath.allowBasic ? isPlainMath : function (it) { return isPlainMath(it) && it.level > 1; };
+      math = fillModule(math, 'math', mathN, date, i, 'math', sxCur, mathPick, isCalcMath, dayUsed);
+      if (math.length < mathN) math = fillModule(math, 'math', mathN, date, i, 'math', sxCur, isPlainMath, isCalcMath, dayUsed);
       math = ensureCmp(math, date, i, dayUsed, sxCur);
 
       // 插错题复习（数学 2 题、语文各 1 题）
@@ -412,8 +470,10 @@
      免得改完当天打开看到的还是老样子。
      v3 = 去掉送分认字题 + 三档题量改 18/25/35
      v4 = 偏旁题下架 + 笔顺题每场限 1 道 + 差额转数学计算题
-     v5 = 同日多场不重题 + 比较式题干带算式 + 新增试卷同款思维挑战题 */
-  var PLAN_VERSION = 6;
+     v5 = 同日多场不重题 + 比较式题干带算式 + 新增试卷同款思维挑战题
+     v6 = 语文加近义 / 反义 / 成语 / 短文阅读，数学加两步应用题 + 挑战题
+     v7 = 难度随学期线性抬升：基础题占比下降，应用题 / 挑战题占比上升 */
+  var PLAN_VERSION = 7;
 
   function touched(day) {
     return (day.plan || []).some(function (s) {
@@ -739,6 +799,7 @@
     currentSlot: currentSlot, writingOK: writingOK,
     streakInfo: streakInfo, shouldRest: shouldRest, restGate: restGate, restGateIfNeeded: restGateIfNeeded,
     BREAK_MIN: BREAK_MIN, REST_AFTER: REST_AFTER,
-    maxCursor: maxCursor, consolidate: consolidate
+    maxCursor: maxCursor, consolidate: consolidate,
+    diffCfg: diffCfg, progressFrac: progressFrac
   };
 })(window);

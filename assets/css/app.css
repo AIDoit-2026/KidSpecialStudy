@@ -865,3 +865,63 @@ textarea.input{min-height:84px;resize:vertical}
   .ex-compute{grid-template-columns:repeat(3,1fr)}
   .ex-pfour-eqs{grid-template-columns:1fr}
 }
+
+/* ---------- 短文阅读（语文新题型） ---------- */
+.q-passage{background:#FFFDF4;border:1px solid #F3E4C4;border-radius:12px;
+  padding:12px 14px;margin:10px 0 12px;line-height:1.95}
+.q-passage-title{font-weight:800;color:#8A6A2F;font-size:13.5px;margin-bottom:4px}
+.q-passage-text{font-size:15.5px;color:#3A3A48;letter-spacing:.02em}
+
+/* ---------- 期中 / 期末考试 ---------- */
+.exam-intro,.exam-result{max-width:720px;margin:0 auto;padding:24px 20px;text-align:center}
+.exam-badge{font-size:46px;line-height:1.2}
+.exam-title{font-size:22px;margin:6px 0 2px;color:var(--ink)}
+.exam-sub{font-size:13px;color:var(--muted)}
+.exam-facts{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:18px 0 14px}
+.exam-fact{background:#FBF5F8;border:1px solid var(--line);border-radius:12px;padding:10px 6px}
+.ef-k{font-size:11.5px;color:var(--muted)}
+.ef-v{font-size:15px;font-weight:800;color:var(--ink);margin-top:3px}
+.exam-tip{font-size:12.5px;color:#8A6D3B;background:#FFFBEB;border:1px solid #FDE68A;
+  border-radius:10px;padding:9px 12px;line-height:1.8;text-align:left}
+.exam-score-box{margin:16px 0 4px;background:#F7FFFA;border:1px solid #CDEEDA;border-radius:14px;padding:12px}
+.es-label{font-size:12px;color:var(--muted)}
+.es-score{font-size:26px;font-weight:900;margin:2px 0}
+.es-sub{font-size:12px;color:var(--muted)}
+.exam-actions{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:18px}
+.exam-doing{max-width:760px;margin:0 auto}
+.exam-doing .q-card{max-width:none}
+.exam-timer{font-size:12.5px;color:var(--pink-d);font-weight:700}
+.exam-foot{display:flex;align-items:center;gap:10px;margin-top:14px}
+.exam-foot .spacer{flex:1}
+.exam-next.is-off{opacity:.5}
+.exam-q .q-options{margin-top:6px}
+.er-emoji{font-size:44px}
+.er-title{font-size:20px;margin:4px 0 2px}
+.er-score{font-size:44px;font-weight:900;line-height:1.2}
+.er-score.good{color:#2F7A5E}
+.er-score.mid{color:#C98A1B}
+.er-score.low{color:#C0392B}
+.er-sub{font-size:13px;color:var(--muted)}
+.er-perfect{margin-top:14px;background:#F3FCF6;border:1px solid #CDEEDA;border-radius:12px;padding:12px;color:#2F7A5E;font-weight:700}
+.er-section{text-align:left;font-weight:800;color:var(--ink);margin:18px 0 8px;font-size:14px}
+.er-wrong{text-align:left;border-left:3px solid #F3B7AE;background:#FFF8F6;border-radius:0 10px 10px 0;
+  padding:10px 12px;margin-bottom:10px}
+.ew-stem{font-weight:700;font-size:13.5px;color:var(--ink);line-height:1.7}
+.ew-passage{font-size:12px;color:#8A6A2F;background:#FFFDF4;border-radius:8px;padding:7px 9px;margin-top:6px;line-height:1.8}
+.ew-line{display:flex;gap:14px;flex-wrap:wrap;font-size:12.5px;margin-top:6px}
+.ew-bad{color:#C0392B}
+.ew-good{color:#2F7A5E;font-weight:700}
+.ew-explain{font-size:12px;color:var(--ink-2);margin-top:6px;line-height:1.8}
+@media (max-width:640px){
+  .exam-facts{grid-template-columns:repeat(2,1fr)}
+  .exam-intro,.exam-result{padding:18px 14px}
+  .er-score{font-size:38px}
+}
+.exam-today{display:flex;align-items:center;gap:12px;margin-top:14px;border-left:4px solid var(--pink)}
+.exam-today.soon{border-left-color:#C9C2CE;background:#FBFAFC}
+.et-ico{font-size:24px;line-height:1}
+.et-main{flex:1;min-width:0}
+.et-title{font-weight:800;font-size:14.5px;color:var(--ink)}
+.et-sub{font-size:12px;color:var(--muted);margin-top:2px}
+@media (max-width:640px){.exam-today{flex-wrap:wrap}.exam-today .btn{width:100%}}
+.exam-foot .btn{white-space:nowrap}

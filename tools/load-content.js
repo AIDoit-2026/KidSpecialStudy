@@ -5,7 +5,7 @@ const root = path.resolve(__dirname, '..');
 const FILES = [
   'assets/js/util.js',
   'content/chars-db.js', 'content/chars-db-1b.js',
-  'content/py-presets.js', 'content/yw-builder.js', 'content/sx-builder.js',
+  'content/py-presets.js', 'content/yw-extra.js', 'content/yw-builder.js', 'content/sx-builder.js', 'content/sx-hard.js',
   'content/writing-1a.js', 'content/writing-1b.js',
   'content/yw-1a.js', 'content/yw-1b.js',
   'content/sx-1a.js', 'content/sx-1b.js'

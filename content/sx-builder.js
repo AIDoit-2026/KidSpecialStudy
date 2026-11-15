@@ -1321,7 +1321,8 @@
           lesson: n.lesson, estimatedMin: 30, items: items,
           ineq: n.ineq,                                  // 本节点应带的比较式填数题数
           challenge: n.challenge || 0,                   // 本节点应带的思维挑战题数
-          unitpack: n.unitpack || 0                     // 本节点应带的单元知识点题数
+          unitpack: n.unitpack || 0,                    // 本节点应带的单元知识点题数
+          apply: n.apply || 0                           // 本节点应带的两步应用题数
         });
       });
       content.units.push(unit);

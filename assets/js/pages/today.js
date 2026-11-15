@@ -102,6 +102,36 @@
     hero.appendChild(U.h('div', { class: 'h-decor', text: kid.avatar }));
     view.appendChild(hero);
 
+    /* 期中 / 期末考试：开放期内给入口，考完显示成绩，考前一周给提醒 */
+    if (w.ExamGen) {
+      var exams = w.ExamGen.schedule(date);
+      var open = exams.filter(function (x) { return x.state === 'open'; })[0];
+      var upcoming = exams.filter(function (x) { return x.state === 'upcoming'; })[0];
+      var recent = exams.filter(function (x) { return x.state === 'done' && x.record && U.diffDays(String(x.record.at ? U.fmt(new Date(x.record.at)) : x.date), date) <= 7; })[0];
+      var ex = open || recent;
+      if (ex) {
+        var box = U.h('div', { class: 'card exam-today' });
+        var ico = U.h('div', { class: 'et-ico', text: ex.kind === 'mid' ? '📝' : '🏁' });
+        var main = U.h('div', { class: 'et-main' });
+        main.appendChild(U.h('div', { class: 'et-title', text: ex.label + (ex.record ? ' · 已考 ' + ex.record.score + ' 分' : ' · 可以开始了') }));
+        main.appendChild(U.h('div', { class: 'et-sub', text: ex.bookLabel + ' · ' + U.fmtCn(ex.date) + '（' + U.weekdayCn(ex.date) + '） · 20 题 / 100 分' }));
+        box.appendChild(ico);
+        box.appendChild(main);
+        box.appendChild(U.h('button', {
+          class: 'btn btn-primary',
+          text: ex.record ? '看成绩 / 重考' : '进入考试',
+          onclick: function () { App.go('#/examday?kind=' + ex.kind); }
+        }));
+        view.appendChild(box);
+      } else if (upcoming) {
+        view.appendChild(U.h('div', { class: 'card exam-today soon' },
+          U.h('div', { class: 'et-ico', text: '📅' }),
+          U.h('div', { class: 'et-main' },
+            U.h('div', { class: 'et-title', text: upcoming.label + '还有 ' + U.diffDays(date, upcoming.date) + ' 天' }),
+            U.h('div', { class: 'et-sub', text: U.fmtCn(upcoming.date) + ' · ' + upcoming.bookLabel + ' · 20 题 / 100 分' }))));
+      }
+    }
+
     if (w.Store.photoMode && w.Store.photoMode() === 'local') {
       view.appendChild(U.h('div', {
         class: 'small', style: {

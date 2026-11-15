@@ -119,6 +119,12 @@
         wrap.appendChild(U.h('span', { class: 'fig-eq', text: fig.cmp }));
         wrap.appendChild(cmpBox(fig.c));
       }
+    } else if (fig.type === 'passage') {
+      /* 短文阅读：把短文放在题干上方，读完再答下面的问题 */
+      var pass = U.h('div', { class: 'q-passage' });
+      if (fig.title) pass.appendChild(U.h('div', { class: 'q-passage-title', text: fig.title }));
+      pass.appendChild(U.h('div', { class: 'q-passage-text', text: fig.text }));
+      wrap.appendChild(pass);
     } else if (fig.type === 'blocks') {
       var area = U.h('div', { style: { display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' } });
       (fig.layout || []).forEach(function (n) {
@@ -482,7 +488,10 @@
         answer: ans, correct: correct, tries: tries, ms: ms, slot: slot,
         skill: item.skill
       });
-      w.Store.recordAnswer(item, correct, { review: !!item._isReview });
+      /* 只要这道题还在错题本里，这次答对就算「复习成功」，要把间隔往后推；
+         以前靠 item._isReview 判断，但那个标记从没被赋值，导致错题永远到期、
+         同一道题天天出现在练习末尾。 */
+      w.Store.recordAnswer(item, correct, { review: !!w.Store.mistakeOf(item.id) });
     }
   }
 
@@ -514,5 +523,6 @@
     return item.answer + (item.unit || '');
   }
 
+  App.renderFigure = renderFigure;   // 考试页复用同一套图示渲染
   App.page('practice', { title: '开始练习', render: render, renderFigure: renderFigure });
 })(window);
