@@ -541,6 +541,25 @@
     });
   }
 
+  /* 题库 / 难度规则升级（PLAN_VERSION 变了），但今天已经做了一部分场次：
+     做过的场次原样保留，只把还没动的场次换成新题。
+     直接 rebuild 会把做过的场次也清掉，孩子白做。 */
+  function resetRemaining(date) {
+    date = date || U.today();
+    var old = w.Store.day(date);
+    var oldPlan = (old && old.plan) || [];
+    var keep = [];
+    oldPlan.forEach(function (s) {
+      if (s.status === 'done' || s.startedAt || Object.keys(s.answers || {}).length) keep.push(s);
+    });
+    var fresh = buildPlan(date);
+    var plan = keep.concat(fresh.slice(keep.length));
+    return w.Store.saveDay(date, {
+      plan: plan, done: false, startedAt: (old && old.startedAt) || null,
+      planVersion: PLAN_VERSION, checkedIn: checkedIn(old)
+    });
+  }
+
   /* 预览缓存：同一天在同一次查看里反复进出（列表 ↔ 详情 ↔ 翻场次）要看到同一份题，
      否则每次 buildPlan 都会重新随机，家长会以为题目在跳。孩子做了一场后进度变了，key 自然失效。 */
   var PREVIEW_CACHE = {};
@@ -792,7 +811,8 @@
 
   w.Task = {
     PACE: PACE, paceCfg: paceCfg,
-    buildPlan: buildPlan, ensure: ensure, rebuild: rebuild, preview: preview,
+    buildPlan: buildPlan, ensure: ensure, rebuild: rebuild, resetRemaining: resetRemaining,
+    PLAN_VERSION: PLAN_VERSION, preview: preview,
     pickMath: pickMath, trimChars: trimChars, isCalcMath: isCalcMath,
     sessionItems: sessionItems, canCheckin: canCheckin, completeSlot: completeSlot,
     summary: summary, writingCharsOf: writingCharsOf, checkedIn: checkedIn,

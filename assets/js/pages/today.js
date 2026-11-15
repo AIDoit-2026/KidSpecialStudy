@@ -170,6 +170,26 @@
       view.appendChild(tips);
     }
 
+    /* 题库 / 难度规则升级过（PLAN_VERSION 变了），而今天已经动过 → 不会自动换。
+       给一个只换「还没做的场次」的入口，做过的场次和打卡都留着。 */
+    if (day.planVersion && day.planVersion !== w.Task.PLAN_VERSION) {
+      var upTips = U.h('div', { class: 'card', style: { marginTop: '10px', background: '#F0F7FF', border: '1px solid #CFE3FF' } });
+      upTips.appendChild(U.h('div', { style: { fontWeight: '800', fontSize: '15px', color: '#1B4E8A' },
+        text: '题库更新了，今天还有旧题' }));
+      upTips.appendChild(U.h('div', { class: 'small muted', style: { margin: '6px 0 10px' },
+        text: '今天已经做了一部分，所以没有自动换。点下面按钮把还没做的场次换成新题，做过的场次、星星和打卡都留着。' }));
+      upTips.appendChild(U.h('button', {
+        class: 'btn btn-sm btn-primary', text: '把剩下的场次换成新题',
+        onclick: function () {
+          var nd = w.Task.resetRemaining(date);
+          var left = (nd.plan || []).filter(function (s) { return s.status !== 'done'; }).length;
+          U.toast('已换成新题，今天还有 ' + left + ' 场', 'ok');
+          App.render();
+        }
+      }));
+      view.appendChild(upTips);
+    }
+
     /* ---- 场次条 ---- */
     if ((day.plan || []).length > 1) {
       var strip = U.h('div', { class: 'session-strip' });

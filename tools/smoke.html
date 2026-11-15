@@ -1062,6 +1062,17 @@
     stale.plan[0].status = 'done';
     Store.saveDay(tm, stale);
     ok('已经动过的旧计划不打断', Task.ensure(tm).planVersion === 3, '实际 ' + Task.ensure(tm).planVersion);
+
+    /* 动过的那天也能换新题：只换没做的场次，做过的连着记录一起留着 */
+    var keepDay = JSON.parse(JSON.stringify(Task.rebuild(tm)));
+    keepDay.planVersion = 3;
+    keepDay.plan[0].status = 'done';
+    keepDay.plan[0].photoId = 'p_keep';
+    Store.saveDay(tm, keepDay);
+    var nd = Task.resetRemaining(tm);
+    ok('换新题保留做过的场次', nd.planVersion === V && nd.plan[0].status === 'done' && nd.plan[0].photoId === 'p_keep',
+      '版本 ' + nd.planVersion + ' / 状态 ' + nd.plan[0].status);
+    ok('换新题不改场次数', nd.plan.length === keepDay.plan.length, nd.plan.length + ' vs ' + keepDay.plan.length);
     Task.rebuild(tm);
 
     /* 写字任务完成 ≠ AI 点评完成；家长跳过也算完成 */
