@@ -925,3 +925,49 @@ textarea.input{min-height:84px;resize:vertical}
 .et-sub{font-size:12px;color:var(--muted);margin-top:2px}
 @media (max-width:640px){.exam-today{flex-wrap:wrap}.exam-today .btn{width:100%}}
 .exam-foot .btn{white-space:nowrap}
+
+/* ============================================================
+   庆祝弹层（撒花）：买到新车模时弹一次「恭喜获得」
+   纸屑全部是 CSS 关键帧，不依赖 canvas；--dx / --rz 由 JS 随机
+   ============================================================ */
+#celebrate-root{position:fixed;inset:0;z-index:200;pointer-events:none}
+.cf-mask{position:fixed;inset:0;display:grid;place-items:center;padding:20px;pointer-events:auto;
+  background:rgba(43,43,60,.4);animation:cf-fade .16s ease-out both}
+.cf-mask.cf-out{animation:cf-fadeout .18s ease-in both}
+@keyframes cf-fade{from{opacity:0}to{opacity:1}}
+@keyframes cf-fadeout{from{opacity:1}to{opacity:0}}
+
+.cf-confetti{position:absolute;inset:0;overflow:hidden;pointer-events:none}
+.cf-p{position:absolute;top:-16vh;display:block;
+  animation-name:cf-fall;animation-timing-function:linear;animation-fill-mode:both}
+@keyframes cf-fall{
+  0%{transform:translate3d(0,-12vh,0) rotate(0deg);opacity:0}
+  5%{opacity:1}
+  92%{opacity:1}
+  100%{transform:translate3d(var(--dx,0),112vh,0) rotate(var(--rz,540deg));opacity:0}
+}
+
+.cf-card{position:relative;z-index:2;width:min(90vw,380px);background:#fff;border-radius:24px;
+  padding:22px 20px 16px;text-align:center;box-shadow:0 24px 60px rgba(120,60,90,.3);
+  animation:cf-pop .44s cubic-bezier(.2,1.5,.4,1) both}
+@keyframes cf-pop{0%{transform:scale(.72) translateY(16px);opacity:0}100%{transform:none;opacity:1}}
+
+.cf-title{font-size:22px;font-weight:900;letter-spacing:.5px;
+  background:linear-gradient(95deg,#FF6B9D,#FFA45B 52%,#C47AFF);
+  -webkit-background-clip:text;background-clip:text;color:transparent}
+.cf-sub{font-size:13px;color:var(--muted);margin-top:4px}
+.cf-art{margin:10px auto 6px;border-radius:18px;
+  background:radial-gradient(circle at 50% 62%,#FFF3E6,#FFFCF8 72%)}
+.cf-art svg{width:100%;height:122px;display:block}
+.cf-name{font-size:18px;font-weight:900;color:var(--ink)}
+.cf-meta{font-size:13px;color:var(--ink-2);margin-top:3px}
+.cf-extra{font-size:12px;color:var(--muted);margin-top:8px}
+.cf-btn{margin-top:14px;width:100%}
+.cf-static .cf-card{animation:none}
+
+@media (max-width:420px){
+  .cf-card{width:min(92vw,340px);padding:18px 16px 13px}
+  .cf-art svg{height:98px}
+  .cf-title{font-size:20px}
+  .cf-name{font-size:16.5px}
+}

@@ -1038,6 +1038,10 @@
   }
 
   function byEra(id) { return CARS.filter(function (x) { return x.era === id; }); }
+  function byId(id) {
+    for (var i = 0; i < CARS.length; i++) { if (CARS[i].id === id) return CARS[i]; }
+    return null;
+  }
   function owned(decor) {
     var ids = decor || [];
     return CARS.filter(function (x) { return ids.indexOf(x.id) >= 0; });
@@ -1048,7 +1052,7 @@
   w.Cars = {
     eras: function () { return ERAS.slice(); },
     all: function () { return CARS.slice(); },
-    shapes: SHAPES, svg: svg, byEra: byEra,
+    shapes: SHAPES, svg: svg, byEra: byEra, byId: byId,
     owned: owned, firstYear: firstYear, lastYear: lastYear
   };
 })(window);

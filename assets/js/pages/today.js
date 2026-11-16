@@ -439,8 +439,27 @@
         w.Store.addStars(-cost);
         w.Store.unlockDecor(id);
         U.sfx('done');
-        U.toast('🎉 ' + name + ' 开回家啦', 'ok');
         m.close();
+
+        /* 车模：弹「恭喜获得」+ 撒花，比一句 toast 有仪式感；
+           房间装饰只是换个小摆件，仍旧用轻提示，不打断 */
+        var car = w.Cars.byId(id);
+        if (car) {
+          var era = w.Cars.eras().filter(function (e) { return e.id === car.era; })[0];
+          var ownedN = w.Cars.owned(w.Store.decor()).length;
+          var done = ownedN >= CARS.length;
+          U.celebrate({
+            sub: done ? '全部 ' + CARS.length + ' 辆都收齐了，满车库！' : '新车开进你的车库啦',
+            svg: w.Cars.svg(car),
+            name: car.brand + ' ' + car.model,
+            meta: car.year + ' 年' + (era ? ' · ' + era.label : ''),
+            extra: done ? '从 ' + w.Cars.firstYear() + ' 年到 ' + w.Cars.lastYear() + ' 年，一辆不落' :
+              '车库进度 ' + ownedN + ' / ' + CARS.length + ' 辆',
+            button: done ? '我的满车库 🎉' : '停进车库'
+          });
+        } else {
+          U.toast('🎉 ' + name + ' 开回家啦', 'ok');
+        }
         App.render();
       }
 

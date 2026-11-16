@@ -32,6 +32,7 @@
 <div id="modal-root"></div>
 <div id="toast-root" class="toast-root"></div>
 <div id="fx-root" class="fx-root"></div>
+<div id="celebrate-root"></div>
 <div id="results"></div>
 
 <script src="../assets/js/util.js"></script>
@@ -897,6 +898,16 @@
     ok('解锁后展柜点亮一辆', document.querySelectorAll('.car-shelf .car-cell.on').length === onBefore + 1,
       document.querySelectorAll('.car-shelf .car-cell.on').length);
 
+    /* 买到新车要弹「恭喜获得」+ 撒花，而不是一句 toast 就过去了 */
+    var cel = document.querySelector('#celebrate-root .cf-card');
+    ok('买到车模弹出恭喜获得', !!cel && cel.textContent.indexOf('恭喜获得') >= 0);
+    ok('弹层里写着刚买的车', !!cel && cel.textContent.indexOf(cars[0].model) >= 0,
+      cel ? cel.textContent.slice(0, 40) : '没有弹层');
+    ok('弹层里有撒花纸屑', document.querySelectorAll('#celebrate-root .cf-p').length >= 40,
+      document.querySelectorAll('#celebrate-root .cf-p').length + ' 片');
+    var celBtn = document.querySelector('#celebrate-root .cf-btn');
+    if (celBtn) celBtn.click();
+
     /* 新徽章庆祝只弹一次 */
     ok('已有徽章可供提示', Badges.owned().length >= 1, Badges.owned().length);
     var kidId = Store.kids.active().id;
@@ -1435,6 +1446,37 @@
     });
   }
 
+  /* 庆祝弹层：撒花 / 车名 / 连开不叠 / 关掉要真的移除 */
+  function celebrateUI() {
+    section('恭喜获得 · 撒花');
+    var root = document.getElementById('celebrate-root');
+    ok('页面上有庆祝层容器', !!root);
+    if (!root) return Promise.resolve();
+    U.$$('.cf-mask', root).forEach(function (x) { if (x.parentNode) x.parentNode.removeChild(x); });
+    var car = Cars.byId('car_911');
+    ok('Cars.byId 能按 id 取车', !!car && car.brand === '保时捷', car ? car.model : 'null');
+    var c = U.celebrate({
+      svg: Cars.svg(car), name: car.brand + ' ' + car.model,
+      meta: car.year + ' 年 · 1960 年代', extra: '车库进度 7 / 42 辆', button: '停进车库'
+    });
+    ok('弹出恭喜获得卡片', root.textContent.indexOf('恭喜获得') >= 0);
+    ok('卡片写明车名与年份', root.textContent.indexOf('保时捷 911') >= 0 && root.textContent.indexOf('1963 年') >= 0);
+    ok('车图是矢量 SVG', !!root.querySelector('.cf-art svg'));
+    ok('按钮文案可定制', (root.querySelector('.cf-btn') || {}).textContent === '停进车库');
+    ok('卡片上有进度文案', root.textContent.indexOf('车库进度 7 / 42 辆') >= 0);
+
+    var c2 = U.celebrate({ name: '第二辆' });
+    ok('连开两张不会叠两层', root.querySelectorAll('.cf-mask').length === 1);
+    ok('后一张盖掉前一张', root.textContent.indexOf('第二辆') >= 0 && root.textContent.indexOf('保时捷 911') < 0);
+    c2.close();
+    return new Promise(function (res) {
+      setTimeout(function () {
+        ok('关掉后弹层真的移除', !root.querySelector('.cf-card') && !c.el.parentNode);
+        res();
+      }, 320);
+    });
+  }
+
   interaction().catch(function (e) {
     fail++; out.push('EXCEPTION(interaction): ' + e.message);
   }).then(function () {
@@ -1447,6 +1489,8 @@
     return writingFlow();
   }).then(function () {
     try { badgeAndCars(); } catch (e) { fail++; out.push('EXCEPTION(badgeAndCars): ' + e.message); }
+  }).then(function () {
+    return celebrateUI();
   }).then(function () {
     try { highLevel(); } catch (e) { fail++; out.push('EXCEPTION(highLevel): ' + e.message); }
   }).then(function () {

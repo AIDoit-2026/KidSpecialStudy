@@ -264,6 +264,88 @@
     });
   };
 
+  /* ---------------- 庆祝弹层（撒花） ----------------
+     用在「恭喜获得」新车模：全屏淡入 + 卡片弹跳 + 纸屑从顶上飘落。
+     不用 canvas：每片纸屑是一个 <i>，位置 / 颜色 / 下落时长在 JS 里随机，
+     轨迹交给 CSS 关键帧（--dx 横向漂移、--rz 翻转角度）。
+     opts: { title, sub, name, meta, svg, extra, button, onClose } */
+  U.celebrate = function (opts) {
+    opts = opts || {};
+    var root = document.getElementById('celebrate-root');
+    if (!root) {
+      root = U.h('div', { id: 'celebrate-root' });
+      document.body.appendChild(root);
+    }
+    var reduce = false;
+    try { reduce = !!(w.matchMedia && w.matchMedia('(prefers-reduced-motion: reduce)').matches); } catch (e) { }
+    /* 连点两下买两辆时不叠两层：把上一张先收掉 */
+    U.$$('.cf-mask', root).forEach(function (x) { if (x.parentNode) x.parentNode.removeChild(x); });
+
+    var COLORS = ['#FF6B9D', '#FFE66D', '#4ECDC4', '#95E67E', '#C47AFF', '#FFA45B'];
+    var mask = U.h('div', {
+      class: 'cf-mask' + (reduce ? ' cf-static' : ''),
+      role: 'dialog', 'aria-label': opts.name ? '恭喜获得 ' + opts.name : '恭喜获得'
+    });
+    var confetti = U.h('div', { class: 'cf-confetti', 'aria-hidden': 'true' });
+
+    if (!reduce) {
+      for (var i = 0; i < 64; i++) {
+        var s = 6 + Math.random() * 7;
+        confetti.appendChild(U.h('i', {
+          class: 'cf-p',
+          style: {
+            left: (Math.random() * 100).toFixed(2) + '%',
+            width: s.toFixed(1) + 'px',
+            height: (s * (0.5 + Math.random() * 0.9)).toFixed(1) + 'px',
+            background: COLORS[i % COLORS.length],
+            borderRadius: Math.random() < 0.32 ? '50%' : '2px',
+            animationDelay: (Math.random() * 1.6).toFixed(2) + 's',
+            animationDuration: (2.1 + Math.random() * 1.9).toFixed(2) + 's',
+            '--dx': ((Math.random() - 0.5) * 180).toFixed(0) + 'px',
+            '--rz': ((Math.random() - 0.5) * 900).toFixed(0) + 'deg'
+          }
+        }));
+      }
+    }
+
+    var card = U.h('div', { class: 'cf-card' });
+    card.appendChild(U.h('div', { class: 'cf-title', text: opts.title || '🎉 恭喜获得！' }));
+    if (opts.sub) card.appendChild(U.h('div', { class: 'cf-sub', text: opts.sub }));
+    if (opts.svg) card.appendChild(U.h('div', { class: 'cf-art', html: opts.svg }));
+    if (opts.name) card.appendChild(U.h('div', { class: 'cf-name', text: opts.name }));
+    if (opts.meta) card.appendChild(U.h('div', { class: 'cf-meta', text: opts.meta }));
+    if (opts.extra) card.appendChild(U.h('div', { class: 'cf-extra', text: opts.extra }));
+
+    var api = {
+      el: mask,
+      close: function () {
+        if (!mask.parentNode) return;
+        document.removeEventListener('keydown', onKey);
+        mask.classList.add('cf-out');
+        setTimeout(function () {
+          if (mask.parentNode) mask.parentNode.removeChild(mask);
+          if (opts.onClose) opts.onClose();
+        }, reduce ? 0 : 180);
+      }
+    };
+    function onKey(e) { if (e.key === 'Escape') api.close(); }
+    card.appendChild(U.h('button', {
+      class: 'btn btn-primary cf-btn', text: opts.button || '好耶！',
+      onclick: function () { api.close(); }
+    }));
+    mask.appendChild(confetti);
+    mask.appendChild(card);
+    mask.addEventListener('mousedown', function (e) { if (e.target === mask) api.close(); });
+    document.addEventListener('keydown', onKey);
+    root.appendChild(mask);
+    root.appendChild(mask);
+    setTimeout(function () {
+      var b = card.querySelector('.cf-btn');
+      if (b) b.focus();
+    }, 80);
+    return api;
+  };
+
   /* ---------------- 音效（WebAudio 合成，零资源）---------------- */
   var actx = null;
   U.sfx = function (kind) {
